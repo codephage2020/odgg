@@ -1,0 +1,39 @@
+-- dbt model: {{ model.fact_table.name }}
+-- Grain: {{ model.fact_table.grain_description }}
+-- Business process: {{ model.business_process }}
+
+{{ "{{" }} config(materialized='table') {{ "}}" }}
+
+WITH source AS (
+    SELECT * FROM {{ "{{" }} source('raw', '{{ model.fact_table.source_tables[0] }}') {{ "}}" }}
+),
+
+{% for dim in model.dimensions %}
+{% if not dim.is_degenerate %}
+{{ dim.name }} AS (
+    SELECT * FROM {{ "{{" }} ref('{{ dim.name }}') {{ "}}" }}
+),
+{% endif %}
+{% endfor %}
+
+final AS (
+    SELECT
+        {% for dk in model.fact_table.dimension_keys %}
+        {{ model.dimensions[loop.index0].name }}.{{ model.dimensions[loop.index0].name }}_key AS {{ dk }},
+        {% endfor %}
+        {% for dd in model.fact_table.degenerate_dimensions %}
+        source.{{ dd }},
+        {% endfor %}
+        {% for measure in model.fact_table.measures %}
+        source.{{ measure.source_column }} AS {{ measure.name }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    FROM source
+    {% for dim in model.dimensions %}
+    {% if not dim.is_degenerate %}
+    LEFT JOIN {{ dim.name }}
+        ON source.{{ dim.natural_key }}::TEXT = {{ dim.name }}._source_id
+    {% endif %}
+    {% endfor %}
+)
+
+SELECT * FROM final

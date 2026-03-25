@@ -1,0 +1,48 @@
+services:
+  # TPC-H sample database
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tpch
+      POSTGRES_USER: odgg
+      POSTGRES_PASSWORD: odgg_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker/tpc-h/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odgg -d tpch"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      ODGG_DEBUG: "true"
+      ODGG_LLM_PROVIDER: "openai"
+      ODGG_LLM_MODEL: "gpt-4o"
+      ODGG_LLM_API_KEY: "${ODGG_LLM_API_KEY:-}"
+      ODGG_CORS_ORIGINS: '["http://localhost:5173"]'
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

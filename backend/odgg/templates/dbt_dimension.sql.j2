@@ -1,0 +1,23 @@
+-- dbt model: {{ dim.name }}
+-- Source: {{ dim.source_table }}
+-- {{ dim.description }}
+
+{{ "{{" }} config(materialized='table') {{ "}}" }}
+
+WITH source AS (
+    SELECT * FROM {{ "{{" }} source('raw', '{{ dim.source_table }}') {{ "}}" }}
+),
+
+final AS (
+    SELECT
+        {{ "{{" }} dbt_utils.generate_surrogate_key(['{{ dim.natural_key }}']) {{ "}}" }} AS {{ dim.name }}_key,
+        {% for col in dim.columns %}
+        {{ col }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+        {% if dim.columns %},{% endif %}
+        {{ dim.natural_key }}::TEXT AS _source_id,
+        CURRENT_TIMESTAMP AS _loaded_at
+    FROM source
+)
+
+SELECT * FROM final

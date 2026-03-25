@@ -1,0 +1,52 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: public
+    tables:
+      {% for table in model.fact_table.source_tables %}
+      - name: {{ table }}
+      {% endfor %}
+      {% for dim in model.dimensions %}
+      {% if not dim.is_degenerate and dim.source_table not in model.fact_table.source_tables %}
+      - name: {{ dim.source_table }}
+      {% endif %}
+      {% endfor %}
+
+models:
+  - name: {{ model.fact_table.name }}
+    description: "{{ model.description or model.business_process }} fact table. Grain: {{ model.fact_table.grain_description }}"
+    columns:
+      {% for dk in model.fact_table.dimension_keys %}
+      - name: {{ dk }}
+        description: "Foreign key to {{ model.dimensions[loop.index0].name }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('{{ model.dimensions[loop.index0].name }}')
+              field: {{ model.dimensions[loop.index0].name }}_key
+      {% endfor %}
+      {% for measure in model.fact_table.measures %}
+      - name: {{ measure.name }}
+        description: "{{ measure.description or measure.name }}"
+        tests:
+          - not_null
+      {% endfor %}
+
+  {% for dim in model.dimensions %}
+  {% if not dim.is_degenerate %}
+  - name: {{ dim.name }}
+    description: "{{ dim.description }}"
+    columns:
+      - name: {{ dim.name }}_key
+        description: "Surrogate key"
+        tests:
+          - unique
+          - not_null
+      - name: _source_id
+        description: "Natural key from source"
+        tests:
+          - unique
+          - not_null
+  {% endif %}
+  {% endfor %}
