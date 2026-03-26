@@ -12,7 +12,7 @@ class TestBuildModelString:
     def test_openai_provider(self, mock_settings):
         mock_settings.llm_provider = "openai"
         mock_settings.llm_model = "gpt-4o"
-        assert _build_model_string() == "gpt-4o"
+        assert _build_model_string() == "openai/gpt-4o"
 
     @patch("odgg.services.llm_router.settings")
     def test_ollama_provider(self, mock_settings):

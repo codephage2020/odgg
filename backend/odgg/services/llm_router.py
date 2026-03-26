@@ -27,8 +27,11 @@ def _build_model_string() -> str:
         return f"ollama/{model}"
     elif provider == "anthropic":
         return f"anthropic/{model}"
-    # OpenAI-compatible providers use the model name directly
-    return model
+    # OpenAI-compatible providers: prefix with openai/ for LiteLLM routing
+    # This works for both native OpenAI and third-party compatible APIs (Kimi, DeepSeek, etc.)
+    if model.startswith("openai/"):
+        return model
+    return f"openai/{model}"
 
 
 def _get_api_params() -> dict[str, Any]:
