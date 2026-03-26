@@ -14,14 +14,32 @@ from odgg.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Regex to strip markdown code fences from LLM output
+import re
+
+_CODE_FENCE_RE = re.compile(r"```(?:json)?\s*\n(.*?)\n```", re.DOTALL)
+
+
+def _extract_json(text: str) -> str:
+    """Extract JSON from markdown code fences or raw text.
+
+    Handles cases where the LLM wraps JSON in ```json ... ``` blocks,
+    possibly with additional explanation text before/after the fence.
+    """
+    text = text.strip()
+    m = _CODE_FENCE_RE.search(text)
+    if m:
+        return m.group(1).strip()
+    return text
+
 # Suppress litellm's verbose logging
 litellm.suppress_debug_info = True
 
 # Models that do not support temperature parameter
-_NO_TEMPERATURE_MODELS = {"kimi-k2.5"}
+_NO_TEMPERATURE_MODELS = {"kimi-k2.5", "kimi-for-coding"}
 
 # Models that do not support response_format schema (need prompt-based JSON guidance)
-_NO_SCHEMA_MODELS = {"kimi-k2.5"}
+_NO_SCHEMA_MODELS = {"kimi-k2.5", "kimi-for-coding"}
 
 
 def _build_model_string() -> str:
@@ -120,7 +138,7 @@ async def chat_completion(
             if response_model:
                 # Try parsing as the expected model
                 try:
-                    parsed = json.loads(content)
+                    parsed = json.loads(_extract_json(content))
                     return response_model.model_validate(parsed)
                 except (json.JSONDecodeError, Exception) as parse_err:
                     if attempt < max_retries - 1:
@@ -145,7 +163,7 @@ async def chat_completion(
 
             # Return raw dict for unstructured responses
             try:
-                return json.loads(content)
+                return json.loads(_extract_json(content))
             except json.JSONDecodeError:
                 return {"content": content}
 

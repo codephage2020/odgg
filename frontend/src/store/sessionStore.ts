@@ -121,7 +121,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const { session } = get();
     if (!session) throw new Error('No session');
 
-    set({ loading: true, error: null });
+    // Set step to ai_thinking state
+    const updatedSteps = session.steps.map((s) =>
+      s.step_number === stepNumber ? { ...s, status: 'ai_thinking' as const } : s
+    );
+    set({ session: { ...session, steps: updatedSteps }, loading: true, error: null });
     try {
       const resp = await fetch(`${API_BASE}/modeling/suggest`, {
         method: 'POST',
@@ -133,10 +137,33 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       });
       if (!resp.ok) throw new Error(await parseApiError(resp));
       const data = await resp.json();
-      set({ loading: false });
+
+      // Update local step state with AI suggestion
+      const { session: currentSession } = get();
+      if (currentSession) {
+        const updatedSteps = currentSession.steps.map((s) =>
+          s.step_number === stepNumber
+            ? { ...s, status: 'ai_suggested' as const, ai_suggestion: data, confidence: data.confidence ?? 0.8 }
+            : s
+        );
+        set({ session: { ...currentSession, steps: updatedSteps }, loading: false });
+      } else {
+        set({ loading: false });
+      }
       return data;
     } catch (e) {
-      set({ error: (e as Error).message, loading: false });
+      // Reset step status on error
+      const { session: currentSession } = get();
+      if (currentSession) {
+        const updatedSteps = currentSession.steps.map((s) =>
+          s.step_number === stepNumber && s.status === 'ai_thinking'
+            ? { ...s, status: 'active' as const, error: (e as Error).message }
+            : s
+        );
+        set({ session: { ...currentSession, steps: updatedSteps }, error: (e as Error).message, loading: false });
+      } else {
+        set({ error: (e as Error).message, loading: false });
+      }
       throw e;
     }
   },
@@ -147,7 +174,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const resp = await fetch(`${API_BASE}/metadata/discover`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection_url: connectionUrl, schema_name: schema }),
+        body: JSON.stringify({ connection_url: connectionUrl, schema_name: schema, session_id: get().session?.session_id }),
       });
       if (!resp.ok) throw new Error(await parseApiError(resp));
       const data = await resp.json();

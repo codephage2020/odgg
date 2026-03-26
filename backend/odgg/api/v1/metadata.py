@@ -18,6 +18,7 @@ router = APIRouter(prefix="/metadata", tags=["metadata"])
 class DiscoverRequest(BaseModel):
     connection_url: str  # Passed in request body, never logged
     schema_name: str = "public"
+    session_id: str | None = None  # Optional: auto-store metadata in session
 
 
 @router.post("/discover", response_model=MetadataSnapshot)
@@ -25,13 +26,23 @@ async def discover(req: DiscoverRequest) -> MetadataSnapshot:
     """Discover metadata from a source database.
 
     The connection URL is used for the discovery query only and is never
-    persisted or logged.
+    persisted or logged. If session_id is provided, the discovered metadata
+    is automatically stored in the session.
     """
     try:
         snapshot = await discover_metadata(
             connection_url=req.connection_url,
             schema=req.schema_name,
         )
+
+        # Store metadata in session if session_id provided
+        if req.session_id:
+            from odgg.api.v1.sessions import _sessions
+            session = _sessions.get(req.session_id)
+            if session:
+                session.metadata_snapshot = snapshot.model_dump()
+                logger.info("Stored metadata in session %s", req.session_id)
+
         return snapshot
     except Exception as e:
         # Do NOT log the connection URL — it may contain credentials
