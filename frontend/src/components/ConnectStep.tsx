@@ -8,7 +8,7 @@ interface Props {
 
 export function ConnectStep({ onConnect, loading }: Props) {
   const [host, setHost] = useState('localhost');
-  const [port, setPort] = useState('5432');
+  const [port, setPort] = useState('5435');
   const [database, setDatabase] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');

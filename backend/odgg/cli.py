@@ -136,7 +136,7 @@ def generate(
 @app.command()
 def serve(
     host: str = typer.Option("0.0.0.0", "--host"),
-    port: int = typer.Option(8000, "--port"),
+    port: int = typer.Option(8001, "--port"),
     reload: bool = typer.Option(False, "--reload"),
 ) -> None:
     """Start the ODGG API server."""

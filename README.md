@@ -10,7 +10,7 @@ Conversational AI-guided dimensional modeling. Connect your database, walk throu
 # Start everything: PostgreSQL (TPC-H sample) + backend + frontend
 docker compose up
 
-# Open http://localhost:5173
+# Open http://localhost:3001
 ```
 
 ### Local Development
@@ -20,31 +20,31 @@ docker compose up
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-uvicorn odgg.app:app --reload
+uv pip install -e ".[dev]"
+uvicorn odgg.app:app --reload --port 8001
 ```
 
 **Frontend:**
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 **Sample database:**
 
 ```bash
 docker compose up db  # Start just the TPC-H PostgreSQL
-# Connect via: postgresql://odgg:odgg_dev@localhost:5432/tpch
+# Connect via: postgresql://odgg:odgg_dev@localhost:5435/tpch
 ```
 
 ### CLI
 
 ```bash
-pip install -e "./backend"
+uv pip install -e "./backend"
 
-odgg connect --url "postgresql+asyncpg://odgg:odgg_dev@localhost:5432/tpch"
+odgg connect --url "postgresql+asyncpg://odgg:odgg_dev@localhost:5435/tpch"
 odgg generate --model model.json --output ./output
 ```
 

@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     llm_timeout: int = 30  # seconds
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:5173"]
+    cors_origins: list[str] = ["http://localhost:3001"]
 
     model_config = {"env_prefix": "ODGG_", "env_file": ".env"}
 
