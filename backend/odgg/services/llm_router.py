@@ -17,6 +17,12 @@ logger = logging.getLogger(__name__)
 # Suppress litellm's verbose logging
 litellm.suppress_debug_info = True
 
+# Models that do not support temperature parameter
+_NO_TEMPERATURE_MODELS = {"kimi-k2.5"}
+
+# Models that do not support response_format schema (need prompt-based JSON guidance)
+_NO_SCHEMA_MODELS = {"kimi-k2.5"}
+
 
 def _build_model_string() -> str:
     """Build the LiteLLM model string from settings."""
@@ -44,6 +50,16 @@ def _get_api_params() -> dict[str, Any]:
     return params
 
 
+def _model_supports_temperature() -> bool:
+    """Check if the current model supports the temperature parameter."""
+    return settings.llm_model not in _NO_TEMPERATURE_MODELS
+
+
+def _model_supports_schema() -> bool:
+    """Check if the current model supports response_format with schema."""
+    return settings.llm_model not in _NO_SCHEMA_MODELS
+
+
 async def chat_completion(
     messages: list[dict[str, str]],
     response_model: type[BaseModel] | None = None,
@@ -54,28 +70,49 @@ async def chat_completion(
 
     Uses a two-schema strategy:
     - Strict JSON Schema for capable models (GPT-4, Claude)
+    - Prompt-based JSON guidance for models without schema support (Kimi, etc.)
     - Relaxed text-parse fallback for Ollama/smaller models
     """
     model = _build_model_string()
     api_params = _get_api_params()
+
+    # For models without schema support, inject JSON instructions into prompt
+    if response_model and not _model_supports_schema():
+        schema_str = json.dumps(response_model.model_json_schema(), indent=2)
+        messages = [
+            *messages,
+            {
+                "role": "user",
+                "content": (
+                    "You MUST respond with valid JSON only, no markdown or explanation. "
+                    f"The JSON must match this schema:\n{schema_str}"
+                ),
+            },
+        ]
 
     for attempt in range(max_retries):
         try:
             kwargs: dict[str, Any] = {
                 "model": model,
                 "messages": messages,
-                "temperature": temperature,
                 "timeout": settings.llm_timeout,
                 **api_params,
             }
 
-            # Attempt structured output via response_format
-            if response_model and attempt < 2:
+            # Only set temperature if the model supports it
+            if _model_supports_temperature():
+                kwargs["temperature"] = temperature
+
+            # Attempt structured output via response_format (only for compatible models)
+            if response_model and attempt < 2 and _model_supports_schema():
                 schema = response_model.model_json_schema()
                 kwargs["response_format"] = {
                     "type": "json_object",
                     "schema": schema,
                 }
+            elif response_model:
+                # For schema-unsupported models, still request json_object mode
+                kwargs["response_format"] = {"type": "json_object"}
 
             response = await litellm.acompletion(**kwargs)
             content = response.choices[0].message.content
@@ -92,7 +129,7 @@ async def chat_completion(
                             attempt + 1,
                             str(parse_err)[:200],
                         )
-                        # On retry, simplify: ask for JSON in the prompt itself
+                        # On retry, reinforce JSON instruction
                         messages = [
                             *messages,
                             {
@@ -127,14 +164,19 @@ async def stream_completion(
     model = _build_model_string()
     api_params = _get_api_params()
 
-    response = await litellm.acompletion(
-        model=model,
-        messages=messages,
-        temperature=temperature,
-        timeout=settings.llm_timeout,
-        stream=True,
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "timeout": settings.llm_timeout,
+        "stream": True,
         **api_params,
-    )
+    }
+
+    # Only set temperature if the model supports it
+    if _model_supports_temperature():
+        kwargs["temperature"] = temperature
+
+    response = await litellm.acompletion(**kwargs)
 
     async for chunk in response:
         delta = chunk.choices[0].delta
