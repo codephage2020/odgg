@@ -7,8 +7,9 @@ interface Props {
 }
 
 export function ConnectStep({ onConnect, loading }: Props) {
-  const [host, setHost] = useState('localhost');
-  const [port, setPort] = useState('5435');
+  // Defaults configurable via env — Docker sets these to container-internal values
+  const [host, setHost] = useState(import.meta.env.VITE_DB_HOST || 'localhost');
+  const [port, setPort] = useState(import.meta.env.VITE_DB_PORT || '5435');
   const [database, setDatabase] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');

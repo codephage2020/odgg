@@ -1,5 +1,5 @@
 // Star schema model diagram using React Flow
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   ReactFlow,
   Background,

@@ -7,10 +7,15 @@ Conversational AI-guided dimensional modeling. Connect your database, walk throu
 ### Docker Compose (recommended)
 
 ```bash
-# Start everything: PostgreSQL (TPC-H sample) + backend + frontend
-docker compose up
+# 1. Configure LLM credentials
+cp .env.example .env
+# Edit .env — fill in your API key
 
-# Open http://localhost:3001
+# 2. Start everything: PostgreSQL (TPC-H sample) + backend + frontend
+docker compose up --build
+
+# 3. Open http://localhost:3001
+#    DB connection defaults are pre-filled: host=db, port=5432
 ```
 
 ### Local Development
@@ -30,13 +35,14 @@ uvicorn odgg.app:app --reload --port 8001
 cd frontend
 pnpm install
 pnpm dev
+# Vite proxies /api → http://localhost:8001 automatically
 ```
 
 **Sample database:**
 
 ```bash
 docker compose up db  # Start just the TPC-H PostgreSQL
-# Connect via: postgresql://odgg:odgg_dev@localhost:5435/tpch
+# Connect via: host=localhost, port=5435, db=tpch, user=odgg, pass=odgg_dev
 ```
 
 ### CLI
@@ -53,14 +59,24 @@ odgg generate --model model.json --output ./output
 ```
 Frontend (React + Vite)        Backend (FastAPI)
 ┌──────────────────┐          ┌──────────────────────┐
-│ StepNavigator    │  REST/   │ SessionMgr (SQLite)  │
-│ NotebookCells    │◄──SSE──►│ ModelingEngine       │
-│ ModelDiagram     │          │ MetadataDiscovery    │
+│ StepNavigator    │  /api/   │ SessionMgr (SQLite)  │
+│ NotebookCells    │◄──────►│ ModelingEngine       │
+│ ModelDiagram     │  proxy   │ MetadataDiscovery    │
 │ (React Flow)     │          │ CodeGenEngine (Jinja2)│
 └──────────────────┘          │ LLMRouter (LiteLLM)  │
                               │ InputSanitizer       │
                               └──────────────────────┘
 ```
+
+**Proxy architecture (consistent across environments):**
+
+| | Local Dev | Docker |
+|---|-----------|--------|
+| Frontend | Vite dev server `:3001` | nginx `:3001` |
+| API proxy | Vite `proxy` config | nginx `proxy_pass` |
+| Backend | uvicorn `:8001` | uvicorn `:8001` |
+| Database | `localhost:5435` | `db:5432` (internal) |
+| DB form defaults | `localhost / 5435` | `db / 5432` |
 
 ## 8-Step Flow
 
@@ -77,7 +93,7 @@ Frontend (React + Vite)        Backend (FastAPI)
 
 ## LLM Configuration
 
-Set via environment variables:
+Copy `.env.example` to `.env` and fill in your values:
 
 ```bash
 ODGG_LLM_PROVIDER=openai    # openai | ollama | anthropic
@@ -94,10 +110,22 @@ curl -fsSL https://ollama.ai/install.sh | sh
 ollama pull llama3.1
 
 # Configure ODGG
-export ODGG_LLM_PROVIDER=ollama
-export ODGG_LLM_MODEL=llama3.1
-export ODGG_LLM_BASE_URL=http://localhost:11434
+cat >> .env <<EOF
+ODGG_LLM_PROVIDER=ollama
+ODGG_LLM_MODEL=llama3.1
+ODGG_LLM_BASE_URL=http://localhost:11434
+EOF
 ```
+
+## Ports
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| Frontend | 3001 | Web UI |
+| Backend | 8001 | REST API |
+| PostgreSQL | 5435 | Sample TPC-H database (host-mapped) |
+
+All ports intentionally avoid common defaults (5432, 5173, 8080) to prevent conflicts.
 
 ## License
 

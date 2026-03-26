@@ -26,25 +26,35 @@ services:
       - "8001:8001"
     environment:
       ODGG_DEBUG: "true"
-      ODGG_LLM_PROVIDER: "openai"
-      ODGG_LLM_MODEL: "gpt-4o"
+      ODGG_LLM_PROVIDER: "${ODGG_LLM_PROVIDER:-openai}"
+      ODGG_LLM_MODEL: "${ODGG_LLM_MODEL:-gpt-4o}"
       ODGG_LLM_API_KEY: "${ODGG_LLM_API_KEY:-}"
+      ODGG_LLM_BASE_URL: "${ODGG_LLM_BASE_URL:-}"
       ODGG_CORS_ORIGINS: '["http://localhost:3001"]'
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  # Frontend
+  # Frontend (production build served by nginx)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Baked into the Vite bundle at build time
+        VITE_DB_HOST: db
+        VITE_DB_PORT: "5432"
     ports:
       - "3001:3001"
-    environment:
-      VITE_API_URL: "http://localhost:8001/api/v1"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   pgdata:

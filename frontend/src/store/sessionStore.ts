@@ -1,8 +1,9 @@
 // Session state management with Zustand
 import { create } from 'zustand';
-import type { SessionState, StepState, MetadataSnapshot } from '../types';
+import type { SessionState, MetadataSnapshot } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1';
+// Use relative URL so both Vite proxy (local) and nginx proxy (Docker) work
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
 // Extract user-friendly error message from API response
 async function parseApiError(resp: Response): Promise<string> {
