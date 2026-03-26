@@ -1,5 +1,5 @@
 // ODGG main application
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { StepNavigator } from './components/StepNavigator';
 import { DBInfoPanel } from './components/DBInfoPanel';
 import { NotebookCell } from './components/NotebookCell';
@@ -23,9 +23,35 @@ function App() {
     clearError,
   } = useSessionStore();
 
+  // All hooks MUST be called before any conditional return
+  const prevStepRef = useRef<number | null>(null);
+
   useEffect(() => {
     createSession();
   }, [createSession]);
+
+  const handleGetSuggestion = useCallback(async (stepNumber: number) => {
+    try {
+      await getSuggestion(stepNumber);
+    } catch {
+      // Error handled in store
+    }
+  }, [getSuggestion]);
+
+  // Auto-trigger AI suggestion when a step with AI (3-7) becomes active
+  useEffect(() => {
+    if (!session || loading) return;
+    const activeStep = session.steps.find((s) => s.status === 'active');
+    if (
+      activeStep &&
+      activeStep.step_number >= 3 &&
+      activeStep.step_number <= 7 &&
+      activeStep.step_number !== prevStepRef.current
+    ) {
+      prevStepRef.current = activeStep.step_number;
+      handleGetSuggestion(activeStep.step_number);
+    }
+  }, [session, loading, handleGetSuggestion]);
 
   if (!session) {
     return (
@@ -58,14 +84,6 @@ function App() {
       session.metadata_snapshot = snapshot as unknown as Record<string, unknown>;
       await confirmStep(1, { connected: true });
       await confirmStep(2, { tables: snapshot.tables.length });
-    } catch {
-      // Error handled in store
-    }
-  };
-
-  const handleGetSuggestion = async (stepNumber: number) => {
-    try {
-      await getSuggestion(stepNumber);
     } catch {
       // Error handled in store
     }
