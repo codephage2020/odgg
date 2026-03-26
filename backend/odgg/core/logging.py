@@ -14,16 +14,26 @@ class CredentialRedactFilter(logging.Filter):
         re.compile(r"(api[_-]?key\s*[=:]\s*)\S+", re.IGNORECASE),
     ]
 
+    # Replacement strings per pattern (must match group count)
+    REPLACEMENTS = [
+        r"\1***REDACTED***\2",  # URL pattern has 2 groups
+        r"\1***REDACTED***",    # password pattern has 1 group
+        r"\1***REDACTED***",    # api_key pattern has 1 group
+    ]
+
+    def _redact(self, text: str) -> str:
+        for pattern, repl in zip(self.PATTERNS, self.REPLACEMENTS):
+            text = pattern.sub(repl, text)
+        return text
+
     def filter(self, record: logging.LogRecord) -> bool:
         if isinstance(record.msg, str):
-            for pattern in self.PATTERNS:
-                record.msg = pattern.sub(r"\1***REDACTED***\2" if pattern.groups else r"\1***REDACTED***", record.msg)
+            record.msg = self._redact(record.msg)
         if record.args:
             new_args = []
             for arg in (record.args if isinstance(record.args, tuple) else (record.args,)):
                 if isinstance(arg, str):
-                    for pattern in self.PATTERNS:
-                        arg = pattern.sub(r"\1***REDACTED***", arg)
+                    arg = self._redact(arg)
                 new_args.append(arg)
             record.args = tuple(new_args) if isinstance(record.args, tuple) else new_args[0]
         return True
