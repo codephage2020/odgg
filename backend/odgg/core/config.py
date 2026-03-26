@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4o"
     llm_api_key: str = ""
     llm_base_url: str = ""  # For Ollama: http://localhost:11434
-    llm_timeout: int = 30  # seconds
+    llm_timeout: int = 120  # seconds — Kimi and other models can take 60s+
 
     # CORS
     cors_origins: list[str] = ["http://localhost:3001"]

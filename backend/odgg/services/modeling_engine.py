@@ -191,12 +191,19 @@ def build_dimensional_model(session: SessionState) -> DimensionalModel:
                 source_table=dim_data.replace("dim_", ""),
             ))
         elif isinstance(dim_data, dict):
-            dimensions.append(Dimension(**dim_data))
+            # Filter to only Dimension model fields (AI may include extra keys like confidence)
+            valid_fields = Dimension.model_fields.keys()
+            filtered = {k: v for k, v in dim_data.items() if k in valid_fields}
+            dimensions.append(Dimension(**filtered))
 
-    measures = [
-        Measure(**m) if isinstance(m, dict) else m
-        for m in session.selected_measures
-    ]
+    measures = []
+    valid_measure_fields = Measure.model_fields.keys()
+    for m in session.selected_measures:
+        if isinstance(m, dict):
+            filtered = {k: v for k, v in m.items() if k in valid_measure_fields}
+            measures.append(Measure(**filtered))
+        else:
+            measures.append(m)
 
     # Build fact table
     fact = FactTable(

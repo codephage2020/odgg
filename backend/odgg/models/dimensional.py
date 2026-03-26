@@ -62,14 +62,13 @@ class DimensionalModel(BaseModel):
         if not non_degenerate:
             raise ValueError("Model must have at least one non-degenerate dimension")
 
-        # Rule 3: No circular references - dimension source tables must not
-        # reference the fact table's source tables in a way that creates cycles
-        fact_sources = set(self.fact_table.source_tables)
-        dim_sources = set()
+        # Rule 3: No duplicate dimension names (same source_table is OK —
+        # e.g. dim_date and dim_shipping can both source from lineitem)
+        dim_names = set()
         for dim in self.dimensions:
-            if dim.source_table in dim_sources:
-                raise ValueError(f"Duplicate dimension source table: {dim.source_table}")
-            dim_sources.add(dim.source_table)
+            if dim.name in dim_names:
+                raise ValueError(f"Duplicate dimension name: {dim.name}")
+            dim_names.add(dim.name)
 
         # Rule 4: Grain must be defined
         if not self.fact_table.grain_description.strip():
