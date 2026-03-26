@@ -4,6 +4,17 @@ import type { SessionState, StepState, MetadataSnapshot } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1';
 
+// Extract user-friendly error message from API response
+async function parseApiError(resp: Response): Promise<string> {
+  const text = await resp.text();
+  try {
+    const json = JSON.parse(text);
+    return json.detail || json.message || json.error || text;
+  } catch {
+    return text || `请求失败 (${resp.status})`;
+  }
+}
+
 interface SessionStore {
   session: SessionState | null;
   loading: boolean;
@@ -33,7 +44,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source_db_type: dbType }),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await parseApiError(resp));
       const data = await resp.json();
       set({ session: data.state, loading: false });
     } catch (e) {
@@ -45,7 +56,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const resp = await fetch(`${API_BASE}/sessions/${id}`);
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await parseApiError(resp));
       const data = await resp.json();
       set({ session: data, loading: false });
     } catch (e) {
@@ -73,7 +84,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         if (resp.status === 409) {
           throw new Error('会话已被修改，请刷新页面');
         }
-        throw new Error(await resp.text());
+        throw new Error(await parseApiError(resp));
       }
       const data = await resp.json();
       set({ session: data, loading: false });
@@ -97,7 +108,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           version: session.version,
         }),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await parseApiError(resp));
       const data = await resp.json();
       set({ session: data, loading: false });
     } catch (e) {
@@ -119,7 +130,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           step_number: stepNumber,
         }),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await parseApiError(resp));
       const data = await resp.json();
       set({ loading: false });
       return data;
@@ -137,7 +148,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ connection_url: connectionUrl, schema_name: schema }),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await parseApiError(resp));
       const data = await resp.json();
       set({ loading: false });
       return data;
@@ -162,7 +173,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           include_dbt: includeDbt,
         }),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await parseApiError(resp));
       const data = await resp.json();
       set({ loading: false });
       return data;
