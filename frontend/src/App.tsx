@@ -76,9 +76,9 @@ function App() {
       <header className="app-header">
         <h1>ODGG — 数据建模工作台</h1>
         <div className="header-actions">
-          <button className="btn btn-secondary">导出 SQL</button>
-          <button className="btn btn-secondary">导出 dbt</button>
-          <button className="btn btn-primary">一键建表</button>
+          <button className="btn btn-secondary" disabled={!session.dimensional_model}>导出 SQL</button>
+          <button className="btn btn-secondary" disabled={!session.dimensional_model}>导出 dbt</button>
+          <button className="btn btn-primary" disabled={!session.dimensional_model}>一键建表</button>
         </div>
       </header>
 
