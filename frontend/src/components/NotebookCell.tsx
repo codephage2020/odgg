@@ -66,6 +66,7 @@ export function NotebookCell({
           {/* AI suggestion bubble for steps 3-7 */}
           {step.step_number >= 3 && step.step_number <= 7 && (
             <AISuggestionBubble
+              stepNumber={step.step_number}
               suggestion={step.ai_suggestion}
               confidence={step.confidence}
               loading={loading && step.status === 'ai_thinking'}
