@@ -125,6 +125,66 @@ async def stream_suggestion(req: ModelingRequest):
     return EventSourceResponse(event_generator())
 
 
+class ChatRequest(BaseModel):
+    session_id: str
+    message: str
+
+
+@router.post("/chat")
+async def chat_with_model(req: ChatRequest) -> dict:
+    """Free-text conversational model editing via AI."""
+    from odgg.services.llm_router import chat_completion
+
+    session = _sessions.get(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Build context from current session state
+    context_parts = [
+        f"Business process: {session.business_process or 'not selected'}",
+        f"Grain: {session.grain_description or 'not defined'}",
+    ]
+    if session.selected_dimensions:
+        dim_names = [
+            d if isinstance(d, str) else d.get("name", "?")
+            for d in session.selected_dimensions
+        ]
+        context_parts.append(f"Dimensions: {', '.join(dim_names)}")
+    if session.selected_measures:
+        measure_names = [
+            m if isinstance(m, str) else m.get("name", "?")
+            for m in session.selected_measures
+        ]
+        context_parts.append(f"Measures: {', '.join(measure_names)}")
+
+    context = "\n".join(context_parts)
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a Kimball dimensional modeling expert. The user is building "
+                "a star schema and wants to modify it. Here is the current model state:\n\n"
+                f"{context}\n\n"
+                "Help the user modify the model. Reply in Chinese. Be concise."
+            ),
+        },
+        {"role": "user", "content": req.message},
+    ]
+
+    try:
+        result = await chat_completion(messages)
+        # Extract text from the response
+        if isinstance(result, dict):
+            reply = result.get("content", "") or str(result)
+        else:
+            reply = str(result)
+        return {"reply": reply}
+    except Exception as e:
+        logger.error("Chat failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)[:500]) from None
+
+
 class CodegenRequest(BaseModel):
     session_id: str
     mode: str = "full"  # full | incremental
