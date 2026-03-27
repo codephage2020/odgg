@@ -6,6 +6,7 @@ import { DBInfoPanel } from './components/DBInfoPanel';
 import { ModelDiagram } from './components/ModelDiagram';
 import { AIChatPanel } from './components/chat/AIChatPanel';
 import { BottomDrawer } from './components/BottomDrawer';
+import { ThemeToggle } from './components/ThemeToggle';
 import { useSessionStore } from './store/sessionStore';
 import { useChatStore } from './store/chatStore';
 import type { MetadataSnapshot } from './types';
@@ -69,6 +70,7 @@ function App() {
         <h1>ODGG</h1>
         <span className="wb-subtitle">数据建模工作台</span>
         <div className="wb-header-spacer" />
+        <ThemeToggle />
         {error && (
           <div className="wb-error">
             <span>{error}</span>
