@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -355,3 +357,212 @@ class TestEdgeCases:
         data = resp.json()
         assert data["metadata_snapshot"]["database_name"] == "tpch"
         assert len(data["metadata_snapshot"]["tables"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# SSE Cascade Drafting
+# ---------------------------------------------------------------------------
+
+# Mock LLM responses for the cascade
+_MOCK_BP = {
+    "processes": [
+        {
+            "name": "Order Processing",
+            "description": "Track customer orders",
+            "involved_tables": ["orders", "customers"],
+            "confidence": 0.9,
+        }
+    ]
+}
+_MOCK_GRAIN = {
+    "options": [
+        {
+            "description": "One row per order line item",
+            "grain_columns": ["order_id", "line_number"],
+            "source_table": "lineitem",
+            "recommended": True,
+            "reasoning": "Finest grain for order analysis",
+        }
+    ]
+}
+_MOCK_DIMS = {
+    "dimensions": [
+        {
+            "name": "dim_customer",
+            "source_table": "customers",
+            "columns": ["name"],
+            "description": "Customer dimension",
+        }
+    ]
+}
+_MOCK_MEASURES = {
+    "measures": [
+        {
+            "name": "total_revenue",
+            "source_column": "total",
+            "source_table": "orders",
+            "aggregation": "SUM",
+            "description": "Total revenue",
+        }
+    ]
+}
+
+_SAMPLE_SNAPSHOT = {
+    "tables": [
+        {
+            "name": "orders",
+            "columns": [
+                {"name": "id", "data_type": "int"},
+                {"name": "total", "data_type": "decimal"},
+            ],
+        },
+        {
+            "name": "customers",
+            "columns": [{"name": "id", "data_type": "int"}],
+        },
+    ],
+    "relationships": [],
+    "database_name": "tpch",
+    "database_type": "postgresql",
+}
+
+
+class TestCascadeDrafting:
+    @pytest.fixture
+    async def brief_with_snapshot(self, client: AsyncClient) -> str:
+        """Create a brief with metadata snapshot."""
+        resp = await client.post(
+            "/api/v1/briefs",
+            json={
+                "title": "Cascade Test",
+                "metadata_snapshot": _SAMPLE_SNAPSHOT,
+            },
+        )
+        return resp.json()["id"]
+
+    @patch("odgg.api.v1.briefs.suggest_measures", new_callable=AsyncMock)
+    @patch("odgg.api.v1.briefs.suggest_dimensions", new_callable=AsyncMock)
+    @patch("odgg.api.v1.briefs.suggest_grain", new_callable=AsyncMock)
+    @patch("odgg.api.v1.briefs.suggest_business_process", new_callable=AsyncMock)
+    async def test_cascade_creates_four_sections(
+        self,
+        mock_bp,
+        mock_grain,
+        mock_dims,
+        mock_measures,
+        client: AsyncClient,
+        brief_with_snapshot: str,
+    ):
+        mock_bp.return_value = _MOCK_BP
+        mock_grain.return_value = _MOCK_GRAIN
+        mock_dims.return_value = _MOCK_DIMS
+        mock_measures.return_value = _MOCK_MEASURES
+
+        brief_id = brief_with_snapshot
+
+        # Use stream=false for reliable testing
+        resp = await client.post(f"/api/v1/briefs/{brief_id}/draft?stream=false")
+        assert resp.status_code == 200
+
+        # Verify sections were created
+        brief_resp = await client.get(f"/api/v1/briefs/{brief_id}")
+        sections = brief_resp.json()["sections"]
+        assert len(sections) == 4
+
+        types = [s["section_type"] for s in sections]
+        assert "business_process" in types
+        assert "grain" in types
+        assert "dimension" in types
+        assert "measure" in types
+
+    @patch("odgg.api.v1.briefs.suggest_measures", new_callable=AsyncMock)
+    @patch("odgg.api.v1.briefs.suggest_dimensions", new_callable=AsyncMock)
+    @patch("odgg.api.v1.briefs.suggest_grain", new_callable=AsyncMock)
+    @patch("odgg.api.v1.briefs.suggest_business_process", new_callable=AsyncMock)
+    async def test_cascade_sections_have_ai_drafts(
+        self,
+        mock_bp,
+        mock_grain,
+        mock_dims,
+        mock_measures,
+        client: AsyncClient,
+        brief_with_snapshot: str,
+    ):
+        mock_bp.return_value = _MOCK_BP
+        mock_grain.return_value = _MOCK_GRAIN
+        mock_dims.return_value = _MOCK_DIMS
+        mock_measures.return_value = _MOCK_MEASURES
+
+        brief_id = brief_with_snapshot
+        await client.post(f"/api/v1/briefs/{brief_id}/draft?stream=false")
+
+        brief_resp = await client.get(f"/api/v1/briefs/{brief_id}")
+        for section in brief_resp.json()["sections"]:
+            assert len(section["ai_drafts"]) == 1, (
+                f"{section['section_type']} should have 1 AI draft"
+            )
+            assert section["user_edited"] is False
+
+    @patch("odgg.api.v1.briefs.suggest_measures", new_callable=AsyncMock)
+    @patch("odgg.api.v1.briefs.suggest_dimensions", new_callable=AsyncMock)
+    @patch("odgg.api.v1.briefs.suggest_grain", new_callable=AsyncMock)
+    @patch("odgg.api.v1.briefs.suggest_business_process", new_callable=AsyncMock)
+    async def test_cascade_bp_content(
+        self,
+        mock_bp,
+        mock_grain,
+        mock_dims,
+        mock_measures,
+        client: AsyncClient,
+        brief_with_snapshot: str,
+    ):
+        """BP section content includes process name and description."""
+        mock_bp.return_value = _MOCK_BP
+        mock_grain.return_value = _MOCK_GRAIN
+        mock_dims.return_value = _MOCK_DIMS
+        mock_measures.return_value = _MOCK_MEASURES
+
+        brief_id = brief_with_snapshot
+        await client.post(f"/api/v1/briefs/{brief_id}/draft?stream=false")
+
+        brief_resp = await client.get(f"/api/v1/briefs/{brief_id}")
+        bp = next(
+            s for s in brief_resp.json()["sections"] if s["section_type"] == "business_process"
+        )
+        assert "Order Processing" in bp["content"]
+
+    @patch("odgg.api.v1.briefs.suggest_measures", new_callable=AsyncMock)
+    @patch("odgg.api.v1.briefs.suggest_dimensions", new_callable=AsyncMock)
+    @patch("odgg.api.v1.briefs.suggest_grain", new_callable=AsyncMock)
+    @patch("odgg.api.v1.briefs.suggest_business_process", new_callable=AsyncMock)
+    async def test_cascade_returns_section_list(
+        self,
+        mock_bp,
+        mock_grain,
+        mock_dims,
+        mock_measures,
+        client: AsyncClient,
+        brief_with_snapshot: str,
+    ):
+        """stream=false returns JSON array of sections."""
+        mock_bp.return_value = _MOCK_BP
+        mock_grain.return_value = _MOCK_GRAIN
+        mock_dims.return_value = _MOCK_DIMS
+        mock_measures.return_value = _MOCK_MEASURES
+
+        brief_id = brief_with_snapshot
+        resp = await client.post(f"/api/v1/briefs/{brief_id}/draft?stream=false")
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) == 4
+
+    async def test_cascade_no_snapshot_returns_400(self, client: AsyncClient):
+        """Drafting without metadata returns 400."""
+        resp = await client.post("/api/v1/briefs", json={"title": "Empty"})
+        brief_id = resp.json()["id"]
+        resp = await client.post(f"/api/v1/briefs/{brief_id}/draft?stream=false")
+        assert resp.status_code == 400
+
+    async def test_cascade_not_found(self, client: AsyncClient):
+        resp = await client.post("/api/v1/briefs/nonexistent/draft?stream=false")
+        assert resp.status_code == 404

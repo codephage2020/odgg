@@ -1,15 +1,18 @@
-"""Modeling Brief CRUD + section management endpoints."""
+"""Modeling Brief CRUD + section management + SSE cascade drafting."""
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sse_starlette.sse import EventSourceResponse
 
-from odgg.core.database import get_db
+from odgg.core.database import async_session, get_db
 from odgg.models.brief import (
     BriefCreate,
     BriefListItem,
@@ -19,7 +22,15 @@ from odgg.models.brief import (
     SectionCreate,
     SectionResponse,
     SectionRow,
+    SectionType,
     SectionUpdate,
+)
+from odgg.models.metadata import MetadataSnapshot
+from odgg.services.modeling_engine import (
+    suggest_business_process,
+    suggest_dimensions,
+    suggest_grain,
+    suggest_measures,
 )
 
 logger = logging.getLogger(__name__)
@@ -303,8 +314,11 @@ async def regenerate_section(
             detail=f"Section {section_id} not found in brief {brief_id}",
         )
 
-    # TODO: Wire LLM call here — for now return placeholder
-    new_draft = f"[AI draft placeholder for {section.section_type}]"
+    # Load brief for metadata context
+    brief = await _get_brief_or_404(brief_id, db)
+    snapshot = MetadataSnapshot(**(brief.metadata_snapshot or {}))
+
+    new_draft = await _draft_section_content(section.section_type, brief, snapshot)
     drafts = list(section.ai_drafts or [])
     drafts.append(new_draft)
     section.ai_drafts = drafts
@@ -314,3 +328,335 @@ async def regenerate_section(
     await db.commit()
     await db.refresh(section)
     return _section_to_response(section)
+
+
+# ---------------------------------------------------------------------------
+# SSE Cascade Drafting
+# ---------------------------------------------------------------------------
+
+
+async def _draft_section_content(
+    section_type: str,
+    brief: BriefRow,
+    snapshot: MetadataSnapshot,
+    *,
+    business_process: str = "",
+    grain_description: str = "",
+    dimensions: list = [],  # noqa: B006
+) -> str:
+    """Generate AI draft content for a section type.
+
+    Uses the modeling engine's decoupled functions.
+    Falls back to placeholder if no metadata available.
+    """
+    if not snapshot.tables:
+        return "[No metadata available — connect a database first]"
+
+    try:
+        if section_type == SectionType.BUSINESS_PROCESS:
+            result = await suggest_business_process(snapshot)
+            processes = result.get("processes", [])
+            if processes:
+                bp = processes[0]
+                return (
+                    f"**{bp.get('name', 'Unknown')}**\n\n"
+                    f"{bp.get('description', '')}\n\n"
+                    f"Involved tables: {', '.join(bp.get('involved_tables', []))}"
+                )
+            return "[AI could not identify a business process]"
+
+        elif section_type == SectionType.GRAIN:
+            result = await suggest_grain(business_process, snapshot)
+            options = result.get("options", [])
+            recommended = next((o for o in options if o.get("recommended")), None)
+            opt = recommended or (options[0] if options else None)
+            if opt:
+                return (
+                    f"{opt.get('description', '')}\n\n"
+                    f"Grain columns: {', '.join(opt.get('grain_columns', []))}\n"
+                    f"Reasoning: {opt.get('reasoning', '')}"
+                )
+            return "[AI could not determine grain]"
+
+        elif section_type == SectionType.DIMENSION:
+            result = await suggest_dimensions(business_process, grain_description, snapshot)
+            dims = result.get("dimensions", [])
+            if dims:
+                lines = []
+                for d in dims:
+                    lines.append(
+                        f"- **{d.get('name', '?')}** "
+                        f"({d.get('source_table', '?')}): "
+                        f"{d.get('description', '')}"
+                    )
+                return "\n".join(lines)
+            return "[AI could not suggest dimensions]"
+
+        elif section_type == SectionType.MEASURE:
+            result = await suggest_measures(
+                business_process, grain_description, dimensions, snapshot
+            )
+            measures = result.get("measures", [])
+            if measures:
+                lines = []
+                for m in measures:
+                    lines.append(
+                        f"- **{m.get('name', '?')}** "
+                        f"({m.get('aggregation', 'SUM')} of "
+                        f"{m.get('source_column', '?')}): "
+                        f"{m.get('description', '')}"
+                    )
+                return "\n".join(lines)
+            return "[AI could not suggest measures]"
+
+        else:
+            return ""
+
+    except Exception as e:
+        logger.error("AI draft failed for %s: %s", section_type, e)
+        return f"[AI draft failed: {str(e)[:200]}]"
+
+
+async def _run_cascade(
+    brief_id: str,
+    title: str,
+    snapshot: MetadataSnapshot,
+    db: AsyncSession,
+) -> list[SectionResponse]:
+    """Execute the 2-stage AI cascade and persist sections.
+
+    Stage 1: Business Process → Grain (sequential)
+    Stage 2: Dimensions + Measures (parallel)
+    Returns list of created section responses.
+    """
+    results: list[SectionResponse] = []
+
+    # --- Stage 1a: Business Process ---
+    brief = await _get_brief_or_404(brief_id, db)
+    bp_text = await _draft_section_content(SectionType.BUSINESS_PROCESS, brief, snapshot)
+    bp_section = SectionRow(
+        brief_id=brief_id,
+        section_type=SectionType.BUSINESS_PROCESS,
+        position=0,
+        content=bp_text,
+        ai_drafts=[bp_text],
+    )
+    db.add(bp_section)
+    await db.flush()
+    results.append(_section_to_response(bp_section))
+
+    # Extract BP name for downstream prompts
+    bp_name = bp_text.split("**")[1] if "**" in bp_text else title
+
+    # --- Stage 1b: Grain ---
+    grain_text = await _draft_section_content(
+        SectionType.GRAIN,
+        brief,
+        snapshot,
+        business_process=bp_name,
+    )
+    grain_section = SectionRow(
+        brief_id=brief_id,
+        section_type=SectionType.GRAIN,
+        position=1,
+        content=grain_text,
+        ai_drafts=[grain_text],
+    )
+    db.add(grain_section)
+    await db.flush()
+    results.append(_section_to_response(grain_section))
+
+    # --- Stage 2: Dimensions + Measures (parallel) ---
+    dim_text, measure_text = await asyncio.gather(
+        _draft_section_content(
+            SectionType.DIMENSION,
+            brief,
+            snapshot,
+            business_process=bp_name,
+            grain_description=grain_text,
+        ),
+        _draft_section_content(
+            SectionType.MEASURE,
+            brief,
+            snapshot,
+            business_process=bp_name,
+            grain_description=grain_text,
+            dimensions=[],
+        ),
+    )
+
+    dim_section = SectionRow(
+        brief_id=brief_id,
+        section_type=SectionType.DIMENSION,
+        position=2,
+        content=dim_text,
+        ai_drafts=[dim_text],
+    )
+    measure_section = SectionRow(
+        brief_id=brief_id,
+        section_type=SectionType.MEASURE,
+        position=3,
+        content=measure_text,
+        ai_drafts=[measure_text],
+    )
+    db.add(dim_section)
+    db.add(measure_section)
+    await db.commit()
+
+    results.append(_section_to_response(dim_section))
+    results.append(_section_to_response(measure_section))
+    return results
+
+
+@router.post("/{brief_id}/draft")
+async def draft_brief_sections(
+    brief_id: str,
+    stream: bool = True,
+    db: AsyncSession = Depends(get_db),
+):
+    """Draft all brief sections via 2-stage AI cascade.
+
+    With ?stream=true (default): returns SSE events as sections complete.
+    With ?stream=false: returns JSON array of all created sections.
+
+    Stage 1: Business Process → Grain (sequential, ~6s)
+    Stage 2: Dimensions + Measures (parallel, ~5s)
+    Total: ~11s with progressive section delivery.
+    """
+    brief = await _get_brief_or_404(brief_id, db)
+
+    if not brief.metadata_snapshot:
+        raise HTTPException(
+            status_code=400,
+            detail="Brief has no metadata snapshot — connect a database first",
+        )
+
+    snapshot = MetadataSnapshot(**brief.metadata_snapshot)
+
+    if not stream:
+        # Synchronous JSON mode — easier to test
+        sections = await _run_cascade(brief_id, brief.title, snapshot, db)
+        return [s.model_dump() for s in sections]
+
+    # SSE streaming mode
+    title = brief.title
+
+    async def event_generator():
+        try:
+            async with async_session() as sse_db:
+                sse_brief = await _get_brief_or_404(brief_id, sse_db)
+
+                # Stage 1a: BP
+                yield _sse_event("drafting", {"section": "business_process"})
+                bp_text = await _draft_section_content(
+                    SectionType.BUSINESS_PROCESS, sse_brief, snapshot
+                )
+                bp_section = SectionRow(
+                    brief_id=brief_id,
+                    section_type=SectionType.BUSINESS_PROCESS,
+                    position=0,
+                    content=bp_text,
+                    ai_drafts=[bp_text],
+                )
+                sse_db.add(bp_section)
+                await sse_db.flush()
+                yield _sse_event(
+                    "section_ready",
+                    {
+                        "section": "business_process",
+                        "data": _section_to_response(bp_section).model_dump(),
+                    },
+                )
+
+                bp_name = bp_text.split("**")[1] if "**" in bp_text else title
+
+                # Stage 1b: Grain
+                yield _sse_event("drafting", {"section": "grain"})
+                grain_text = await _draft_section_content(
+                    SectionType.GRAIN,
+                    sse_brief,
+                    snapshot,
+                    business_process=bp_name,
+                )
+                grain_section = SectionRow(
+                    brief_id=brief_id,
+                    section_type=SectionType.GRAIN,
+                    position=1,
+                    content=grain_text,
+                    ai_drafts=[grain_text],
+                )
+                sse_db.add(grain_section)
+                await sse_db.flush()
+                yield _sse_event(
+                    "section_ready",
+                    {
+                        "section": "grain",
+                        "data": _section_to_response(grain_section).model_dump(),
+                    },
+                )
+
+                # Stage 2: Dims + Measures (parallel)
+                yield _sse_event("drafting", {"section": "dimensions_and_measures"})
+                dim_text, measure_text = await asyncio.gather(
+                    _draft_section_content(
+                        SectionType.DIMENSION,
+                        sse_brief,
+                        snapshot,
+                        business_process=bp_name,
+                        grain_description=grain_text,
+                    ),
+                    _draft_section_content(
+                        SectionType.MEASURE,
+                        sse_brief,
+                        snapshot,
+                        business_process=bp_name,
+                        grain_description=grain_text,
+                        dimensions=[],
+                    ),
+                )
+
+                dim_section = SectionRow(
+                    brief_id=brief_id,
+                    section_type=SectionType.DIMENSION,
+                    position=2,
+                    content=dim_text,
+                    ai_drafts=[dim_text],
+                )
+                measure_section = SectionRow(
+                    brief_id=brief_id,
+                    section_type=SectionType.MEASURE,
+                    position=3,
+                    content=measure_text,
+                    ai_drafts=[measure_text],
+                )
+                sse_db.add(dim_section)
+                sse_db.add(measure_section)
+                await sse_db.commit()
+
+                yield _sse_event(
+                    "section_ready",
+                    {
+                        "section": "dimension",
+                        "data": _section_to_response(dim_section).model_dump(),
+                    },
+                )
+                yield _sse_event(
+                    "section_ready",
+                    {
+                        "section": "measure",
+                        "data": _section_to_response(measure_section).model_dump(),
+                    },
+                )
+
+                yield _sse_event("done", {"sections_created": 4})
+
+        except Exception as e:
+            logger.error("Cascade drafting failed for brief %s: %s", brief_id, e)
+            yield _sse_event("error", {"error": str(e)[:500]})
+
+    return EventSourceResponse(event_generator())
+
+
+def _sse_event(event: str, data: dict) -> dict:
+    """Format an SSE event dict for EventSourceResponse."""
+    return {"event": event, "data": json.dumps(data, default=str)}
