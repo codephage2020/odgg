@@ -561,7 +561,7 @@ async def _run_cascade(
     return results
 
 
-@router.post("/{brief_id}/draft")
+@router.api_route("/{brief_id}/draft", methods=["GET", "POST"])
 async def draft_brief_sections(
     brief_id: str,
     stream: bool = True,
@@ -584,6 +584,14 @@ async def draft_brief_sections(
             detail="Brief has no metadata snapshot — connect a database first",
         )
 
+    # Guard: delete existing sections before re-drafting (prevents duplicates)
+    if brief.sections:
+        for sec in list(brief.sections):
+            await db.delete(sec)
+        await db.commit()
+        # Refresh to clear stale references
+        await db.refresh(brief)
+
     snapshot = MetadataSnapshot(**brief.metadata_snapshot)
 
     if not stream:
@@ -598,6 +606,13 @@ async def draft_brief_sections(
         try:
             async with async_session() as sse_db:
                 sse_brief = await _get_brief_or_404(brief_id, sse_db)
+
+                # Guard: delete existing sections before re-drafting
+                if sse_brief.sections:
+                    for sec in list(sse_brief.sections):
+                        await sse_db.delete(sec)
+                    await sse_db.commit()
+                    await sse_db.refresh(sse_brief)
 
                 # Stage 1a: BP
                 yield _sse_event("drafting", {"section": "business_process"})
