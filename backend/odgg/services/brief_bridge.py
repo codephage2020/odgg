@@ -8,6 +8,7 @@ design doc.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Protocol
 
 from odgg.models.brief import BriefRow, SectionType
@@ -51,12 +52,12 @@ class BriefModelSource:
     def get_dimensions(self) -> list[str | dict[str, Any]]:
         dims: list[str | dict[str, Any]] = []
         for sec in sorted(
-            (s for s in self._sections.values() if s.section_type == SectionType.DIMENSION),
+            (s for s in self._sections.values()
+             if s.section_type == SectionType.DIMENSION),
             key=lambda s: s.position,
         ):
             if sec.name and sec.source_table:
                 columns = sec.source_columns or []
-                # Default natural_key to first column or 'id'
                 natural_key = columns[0] if columns else "id"
                 dims.append(
                     {
@@ -65,17 +66,24 @@ class BriefModelSource:
                         "columns": columns,
                         "natural_key": natural_key,
                         "description": sec.content,
-                        "is_degenerate": sec.dimension_type == "degenerate",
+                        "is_degenerate": (
+                            sec.dimension_type == "degenerate"
+                        ),
                     }
                 )
             elif sec.name:
                 dims.append(sec.name)
+            else:
+                # Fallback: parse markdown list items
+                # e.g. "- **dim_date** (lineitem): description"
+                dims.extend(_parse_dims_from_markdown(sec.content))
         return dims
 
     def get_measures(self) -> list[dict[str, Any]]:
         measures: list[dict[str, Any]] = []
         for sec in sorted(
-            (s for s in self._sections.values() if s.section_type == SectionType.MEASURE),
+            (s for s in self._sections.values()
+             if s.section_type == SectionType.MEASURE),
             key=lambda s: s.position,
         ):
             if sec.name:
@@ -84,12 +92,91 @@ class BriefModelSource:
                         "name": sec.name,
                         "source_column": sec.source_column or sec.name,
                         "source_table": sec.source_table or "",
-                        "aggregation": (sec.aggregation_type or "SUM").upper(),
+                        "aggregation": (
+                            sec.aggregation_type or "SUM"
+                        ).upper(),
                         "data_type": sec.data_type or "NUMERIC",
                         "description": sec.content,
                     }
                 )
+            else:
+                # Fallback: parse markdown list items
+                # e.g. "- **Quantity** (SUM of l_quantity): desc"
+                measures.extend(
+                    _parse_measures_from_markdown(sec.content)
+                )
         return measures
+
+
+def _parse_dims_from_markdown(
+    content: str,
+) -> list[str | dict[str, Any]]:
+    """Parse dimension names from markdown list.
+
+    Handles patterns like:
+      - **dim_date** (lineitem): Date dimension...
+      - **dim_customer** (customer): Customer dimension...
+    """
+    dims: list[str | dict[str, Any]] = []
+    # Match "- **name** (source_table): description"
+    pattern = re.compile(
+        r"-\s*\*\*(\w+)\*\*\s*(?:\((\w+)\))?\s*:?\s*(.*)"
+    )
+    for line in content.split("\n"):
+        m = pattern.match(line.strip())
+        if m:
+            name = m.group(1)
+            source_table = m.group(2) or ""
+            desc = m.group(3) or ""
+            if source_table:
+                dims.append(
+                    {
+                        "name": name,
+                        "source_table": source_table,
+                        "columns": [],
+                        "natural_key": "id",
+                        "description": desc.strip(),
+                        "is_degenerate": False,
+                    }
+                )
+            else:
+                dims.append(name)
+    return dims
+
+
+def _parse_measures_from_markdown(
+    content: str,
+) -> list[dict[str, Any]]:
+    """Parse measures from markdown list.
+
+    Handles patterns like:
+      - **Quantity** (SUM of l_quantity): Total quantity...
+      - **Extended Price** (SUM of l_extendedprice): desc
+    """
+    measures: list[dict[str, Any]] = []
+    # Match "- **Name** (AGG of column): description"
+    pattern = re.compile(
+        r"-\s*\*\*([^*]+)\*\*\s*"
+        r"(?:\((\w+)\s+of\s+(\w+)\))?\s*:?\s*(.*)"
+    )
+    for line in content.split("\n"):
+        m = pattern.match(line.strip())
+        if m:
+            name = m.group(1).strip()
+            agg = (m.group(2) or "SUM").upper()
+            col = m.group(3) or name.lower().replace(" ", "_")
+            desc = m.group(4) or ""
+            measures.append(
+                {
+                    "name": name,
+                    "source_column": col,
+                    "source_table": "",
+                    "aggregation": agg,
+                    "data_type": "NUMERIC",
+                    "description": desc.strip(),
+                }
+            )
+    return measures
 
 
 class SessionModelSource:
