@@ -395,13 +395,15 @@ async def _draft_section_content(
     *,
     business_process: str = "",
     grain_description: str = "",
-    dimensions: list = [],  # noqa: B006
+    dimensions: list | None = None,
 ) -> str:
     """Generate AI draft content for a section type.
 
     Uses the modeling engine's decoupled functions.
     Falls back to placeholder if no metadata available.
     """
+    dimensions = dimensions or []
+
     if not snapshot.tables:
         return "[No metadata available — connect a database first]"
 
@@ -467,7 +469,7 @@ async def _draft_section_content(
 
     except Exception as e:
         logger.error("AI draft failed for %s: %s", section_type, e)
-        return f"[AI draft failed: {str(e)[:200]}]"
+        return "[AI draft failed — check server logs for details]"
 
 
 async def _run_cascade(
@@ -499,7 +501,7 @@ async def _run_cascade(
     results.append(_section_to_response(bp_section))
 
     # Extract BP name for downstream prompts
-    bp_name = bp_text.split("**")[1] if "**" in bp_text else title
+    bp_name = bp_text.split("**")[1] if "**" in bp_text else bp_text[:100]
 
     # --- Stage 1b: Grain ---
     grain_text = await _draft_section_content(
@@ -578,7 +580,7 @@ async def draft_brief_sections(
     """
     brief = await _get_brief_or_404(brief_id, db)
 
-    if not brief.metadata_snapshot:
+    if not brief.metadata_snapshot or not brief.metadata_snapshot.get("tables"):
         raise HTTPException(
             status_code=400,
             detail="Brief has no metadata snapshot — connect a database first",
@@ -607,12 +609,7 @@ async def draft_brief_sections(
             async with async_session() as sse_db:
                 sse_brief = await _get_brief_or_404(brief_id, sse_db)
 
-                # Guard: delete existing sections before re-drafting
-                if sse_brief.sections:
-                    for sec in list(sse_brief.sections):
-                        await sse_db.delete(sec)
-                    await sse_db.commit()
-                    await sse_db.refresh(sse_brief)
+                # Sections already deleted by outer guard before SSE starts
 
                 # Stage 1a: BP
                 yield _sse_event("drafting", {"section": "business_process"})
@@ -636,7 +633,7 @@ async def draft_brief_sections(
                     },
                 )
 
-                bp_name = bp_text.split("**")[1] if "**" in bp_text else title
+                bp_name = bp_text.split("**")[1] if "**" in bp_text else bp_text[:100]
 
                 # Stage 1b: Grain
                 yield _sse_event("drafting", {"section": "grain"})
