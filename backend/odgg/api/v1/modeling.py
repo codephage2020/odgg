@@ -9,8 +9,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
+from odgg.api.v1.sessions import _sessions
 from odgg.models.metadata import MetadataSnapshot
-from odgg.models.session import SessionState, StepStatus
+from odgg.models.session import StepStatus
 from odgg.services.llm_router import stream_completion
 from odgg.services.modeling_engine import (
     build_dimensional_model,
@@ -23,9 +24,6 @@ from odgg.services.modeling_engine import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/modeling", tags=["modeling"])
-
-# Reference to session store (shared with sessions module)
-from odgg.api.v1.sessions import _sessions
 
 
 class ModelingRequest(BaseModel):
@@ -41,9 +39,7 @@ async def get_suggestion(req: ModelingRequest) -> dict:
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    step = next(
-        (s for s in session.steps if s.step_number == req.step_number), None
-    )
+    step = next((s for s in session.steps if s.step_number == req.step_number), None)
     if not step:
         raise HTTPException(status_code=400, detail="Invalid step number")
 
@@ -54,16 +50,28 @@ async def get_suggestion(req: ModelingRequest) -> dict:
         snapshot = MetadataSnapshot(**(session.metadata_snapshot or {}))
 
         if req.step_number == 3:
-            result = await suggest_business_process(session, snapshot)
+            result = await suggest_business_process(snapshot)
         elif req.step_number == 4:
-            result = await suggest_grain(session, snapshot)
+            result = await suggest_grain(session.business_process, snapshot)
         elif req.step_number == 5:
-            result = await suggest_dimensions(session, snapshot)
+            result = await suggest_dimensions(
+                session.business_process, session.grain_description, snapshot
+            )
         elif req.step_number == 6:
-            result = await suggest_measures(session, snapshot)
+            result = await suggest_measures(
+                session.business_process,
+                session.grain_description,
+                session.selected_dimensions,
+                snapshot,
+            )
         elif req.step_number == 7:
             # Build and validate the model
-            model = build_dimensional_model(session)
+            model = build_dimensional_model(
+                session.business_process,
+                session.grain_description,
+                session.selected_dimensions,
+                session.selected_measures,
+            )
             result = {"model": model.model_dump(), "status": "valid"}
         else:
             raise HTTPException(
@@ -89,8 +97,6 @@ async def stream_suggestion(req: ModelingRequest):
     session = _sessions.get(req.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-
-    snapshot = MetadataSnapshot(**(session.metadata_snapshot or {}))
 
     # Build context message for streaming
     messages = [
@@ -146,14 +152,12 @@ async def chat_with_model(req: ChatRequest) -> dict:
     ]
     if session.selected_dimensions:
         dim_names = [
-            d if isinstance(d, str) else d.get("name", "?")
-            for d in session.selected_dimensions
+            d if isinstance(d, str) else d.get("name", "?") for d in session.selected_dimensions
         ]
         context_parts.append(f"Dimensions: {', '.join(dim_names)}")
     if session.selected_measures:
         measure_names = [
-            m if isinstance(m, str) else m.get("name", "?")
-            for m in session.selected_measures
+            m if isinstance(m, str) else m.get("name", "?") for m in session.selected_measures
         ]
         context_parts.append(f"Measures: {', '.join(measure_names)}")
 
