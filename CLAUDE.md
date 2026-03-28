@@ -70,23 +70,25 @@ Two-service architecture with a reverse proxy pattern:
 ### Backend Layers
 
 - `app.py` — FastAPI entry point, mounts routers
-- `api/v1/` — Route handlers: `sessions.py` (CRUD + step confirmation), `metadata.py` (schema discovery), `modeling.py` (AI suggestions + code generation)
+- `api/v1/` — Route handlers: `sessions.py` (CRUD + step confirmation), `metadata.py` (schema discovery), `modeling.py` (AI suggestions + code generation), `briefs.py` (Brief Editor CRUD, SSE cascade drafting, code generation)
 - `services/` — Business logic:
-  - `modeling_engine.py` — Kimball 4-step AI-guided modeling, builds metadata context for LLM prompts
+  - `modeling_engine.py` — Kimball 4-step AI-guided modeling, builds metadata context for LLM prompts. Accepts `ModelSource` protocol for decoupled input (session or brief)
+  - `brief_bridge.py` — `BriefModelSource` adapter: extracts dimensions/measures/grain from brief section markdown for code generation
   - `llm_router.py` — LiteLLM wrapper with two-schema retry strategy and SSE streaming. Handles code fence extraction and model-specific quirks (e.g. Kimi models skip temperature)
   - `metadata_discovery.py` — Async schema introspection via SQLAlchemy
   - `codegen.py` — Jinja2-based code generation (DDL, ETL, dbt)
   - `sanitizer.py` — Input sanitization and prompt injection detection
-- `models/` — Pydantic models: `dimensional.py` (star schema types), `metadata.py` (schema snapshot), `session.py` (session + step state)
+- `models/` — Pydantic models: `dimensional.py` (star schema types), `metadata.py` (schema snapshot), `session.py` (session + step state), `brief.py` (brief + section ORM models)
 - `core/` — Config (`pydantic-settings`, env prefix `ODGG_`), database setup, logging
 - `templates/` — Jinja2 templates for DDL, ETL, dbt, data dictionary
 
 ### Frontend Layers
 
-- State: Zustand stores (`sessionStore`, `chatStore`, `datasourceStore`)
+- State: Zustand stores (`sessionStore`, `chatStore`, `datasourceStore`, `briefStore`)
 - Data fetching: TanStack React Query
 - Diagram: React Flow (`@xyflow/react`) for star schema visualization
 - Components: `StepNavigator` (8-step flow), `NotebookCell` (step content), `ModelDiagram` (React Flow), `ConnectStep` (DB connection form), `CodeOutput` (generated code display), `chat/` (AI conversation UI)
+- Brief Editor: `BriefList` (card overview), `BriefEditor` (section document view), `BriefSectionCard` (per-section card with AI draft badge), `BriefSidebar` (section navigation), `BriefShimmer` (loading animation), `BriefConnectDialog` (DB connection for briefs)
 
 ### Key Patterns
 
@@ -94,6 +96,8 @@ Two-service architecture with a reverse proxy pattern:
 - LLM calls go through `services/llm_router.py` → LiteLLM — never call LLM APIs directly
 - Tests use `httpx.AsyncClient` with `ASGITransport` (no real server needed), `asyncio_mode = "auto"`
 - The modeling engine sanitizes all database metadata before including it in LLM prompts (`sanitizer.py`)
+- Brief code generation uses `ModelSource` protocol — `BriefModelSource` (from brief sections) and `SessionModelSource` (from wizard sessions) are interchangeable
+- SSE cascade drafting: Business Process → Grain (sequential), then Dimensions + Measures (parallel via `asyncio.gather`)
 
 ## Conventions
 
