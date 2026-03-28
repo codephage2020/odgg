@@ -17,8 +17,8 @@ engine = create_async_engine(
     settings.session_db_url,
     echo=settings.debug,
     connect_args={"check_same_thread": False},
-    pool_size=1,
-    max_overflow=0,
+    pool_size=5,
+    max_overflow=2,
 )
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
