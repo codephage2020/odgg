@@ -83,6 +83,8 @@ class BriefRow(Base):
 
     # Schema snapshot stored as JSON blob
     metadata_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # User-selected tables for LLM context (None = all tables)
+    selected_tables: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
@@ -214,6 +216,7 @@ class BriefCreate(BaseModel):
     source_db_type: str = "postgresql"
     database_name: str = ""
     metadata_snapshot: dict[str, Any] | None = None
+    selected_tables: list[str] | None = None
 
 
 class BriefUpdate(BaseModel):
@@ -221,6 +224,7 @@ class BriefUpdate(BaseModel):
 
     title: str | None = None
     status: BriefStatus | None = None
+    selected_tables: list[str] | None = None
 
 
 class BriefResponse(BaseModel):
@@ -232,6 +236,7 @@ class BriefResponse(BaseModel):
     source_db_type: str
     database_name: str
     metadata_snapshot: dict[str, Any] | None = None
+    selected_tables: list[str] | None = None
     sections: list[SectionResponse] = []
     created_at: str
     updated_at: str

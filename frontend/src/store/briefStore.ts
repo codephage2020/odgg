@@ -37,7 +37,7 @@ interface BriefState {
   listBriefs: () => Promise<void>;
   createBrief: (title?: string, dbName?: string, snapshot?: Record<string, unknown>) => Promise<Brief>;
   fetchBrief: (id: string) => Promise<void>;
-  updateBrief: (id: string, data: { title?: string; status?: string }) => Promise<void>;
+  updateBrief: (id: string, data: { title?: string; status?: string; selected_tables?: string[] }) => Promise<void>;
   deleteBrief: (id: string) => Promise<void>;
 
   // Section actions

@@ -139,6 +139,29 @@ class TestBuildMetadataContext:
         assert "col_20" not in ctx
 
 
+    def test_selected_tables_filters_tables(self, sample_snapshot):
+        ctx = _build_metadata_context(sample_snapshot, selected_tables=["orders"])
+        assert "orders" in ctx
+        # The "customer" table line should not appear (column "customer_id" in orders is OK)
+        assert "- customer" not in ctx
+        assert "1 selected of 2 total" in ctx
+
+    def test_selected_tables_filters_relationships(self, sample_snapshot):
+        ctx = _build_metadata_context(sample_snapshot, selected_tables=["orders"])
+        # Relationship is orders.customer_id -> customer.id
+        # Since "customer" table is not selected, relationship should be excluded
+        assert "Relationships (0):" in ctx
+
+    def test_selected_tables_none_includes_all(self, sample_snapshot):
+        ctx = _build_metadata_context(sample_snapshot, selected_tables=None)
+        assert "orders" in ctx
+        assert "customer" in ctx
+
+    def test_selected_tables_empty_list(self, sample_snapshot):
+        ctx = _build_metadata_context(sample_snapshot, selected_tables=[])
+        assert "0 selected of 2 total" in ctx
+
+
 class TestBuildDimensionalModel:
     def test_builds_valid_model(self, model_args):
         model = build_dimensional_model(**model_args)

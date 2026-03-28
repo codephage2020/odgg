@@ -6,6 +6,7 @@ import { BriefSidebar } from '../components/brief/BriefSidebar';
 import { BriefSectionCard } from '../components/brief/BriefSectionCard';
 import { BriefShimmer } from '../components/brief/BriefShimmer';
 import { BriefConnectDialog } from '../components/brief/BriefConnectDialog';
+import TableSelector from '../components/brief/TableSelector';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { SECTION_LABELS, SECTION_ICONS } from '../types/brief';
 import type { SectionType } from '../types/brief';
@@ -194,6 +195,20 @@ export function BriefEditor() {
                 🔌 连接数据库
               </button>
             </div>
+          )}
+
+          {/* Table selection for large schemas */}
+          {hasMetadata && (
+            <TableSelector
+              tables={
+                ((currentBrief.metadata_snapshot as Record<string, unknown>)
+                  ?.tables as { name: string; row_count?: number; columns?: { name: string }[] }[]) || []
+              }
+              selectedTables={currentBrief.selected_tables ?? null}
+              onSelectionChange={(tables) => {
+                if (briefId) updateBrief(briefId, { selected_tables: tables });
+              }}
+            />
           )}
 
           {/* Empty state: has metadata but no sections */}

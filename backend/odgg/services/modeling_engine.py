@@ -18,12 +18,33 @@ from odgg.services.sanitizer import detect_prompt_injection, sanitize_for_prompt
 logger = logging.getLogger(__name__)
 
 
-def _build_metadata_context(snapshot: MetadataSnapshot) -> str:
-    """Build a sanitized metadata summary for LLM context."""
-    lines = [f"Database: {sanitize_for_prompt(snapshot.database_name)}"]
-    lines.append(f"Tables ({len(snapshot.tables)}):")
+MAX_TABLES_FOR_LLM = 50
 
-    for table in snapshot.tables:
+
+def _build_metadata_context(
+    snapshot: MetadataSnapshot,
+    selected_tables: list[str] | None = None,
+) -> str:
+    """Build a sanitized metadata summary for LLM context.
+
+    When selected_tables is provided, only those tables (and their
+    relationships) are included. This prevents token overflow on
+    large schemas (500+ tables).
+    """
+    tables = snapshot.tables
+    if selected_tables is not None:
+        allowed = set(selected_tables)
+        tables = [t for t in tables if t.name in allowed]
+
+    lines = [f"Database: {sanitize_for_prompt(snapshot.database_name)}"]
+    if selected_tables is not None:
+        lines.append(
+            f"Tables ({len(tables)} selected of {len(snapshot.tables)} total):"
+        )
+    else:
+        lines.append(f"Tables ({len(tables)}):")
+
+    for table in tables:
         cols = ", ".join(
             f"{sanitize_for_prompt(c.name)} ({c.data_type})"
             for c in table.columns[:20]  # Cap at 20 columns per table
@@ -31,8 +52,13 @@ def _build_metadata_context(snapshot: MetadataSnapshot) -> str:
         row_info = f" ~{table.row_count} rows" if table.row_count else ""
         lines.append(f"  - {sanitize_for_prompt(table.name)}{row_info}: [{cols}]")
 
-    lines.append(f"\nRelationships ({len(snapshot.relationships)}):")
-    for rel in snapshot.relationships:
+    rels = snapshot.relationships
+    if selected_tables is not None:
+        allowed = set(selected_tables)
+        rels = [r for r in rels if r.source_table in allowed and r.target_table in allowed]
+
+    lines.append(f"\nRelationships ({len(rels)}):")
+    for rel in rels:
         inferred = " (inferred)" if rel.is_inferred else ""
         src = f"{sanitize_for_prompt(rel.source_table)}.{sanitize_for_prompt(rel.source_column)}"
         tgt = f"{sanitize_for_prompt(rel.target_table)}.{sanitize_for_prompt(rel.target_column)}"
@@ -55,9 +81,10 @@ def _build_metadata_context(snapshot: MetadataSnapshot) -> str:
 
 async def suggest_business_process(
     snapshot: MetadataSnapshot,
+    selected_tables: list[str] | None = None,
 ) -> dict[str, Any]:
     """Step 3: Suggest business processes based on metadata."""
-    context = _build_metadata_context(snapshot)
+    context = _build_metadata_context(snapshot, selected_tables)
 
     messages = [
         {
@@ -84,9 +111,10 @@ async def suggest_business_process(
 async def suggest_grain(
     business_process: str,
     snapshot: MetadataSnapshot,
+    selected_tables: list[str] | None = None,
 ) -> dict[str, Any]:
     """Step 4: Suggest grain for the selected business process."""
-    context = _build_metadata_context(snapshot)
+    context = _build_metadata_context(snapshot, selected_tables)
 
     messages = [
         {
@@ -117,9 +145,10 @@ async def suggest_dimensions(
     business_process: str,
     grain_description: str,
     snapshot: MetadataSnapshot,
+    selected_tables: list[str] | None = None,
 ) -> dict[str, Any]:
     """Step 5: Suggest dimensions for the fact table."""
-    context = _build_metadata_context(snapshot)
+    context = _build_metadata_context(snapshot, selected_tables)
 
     messages = [
         {
@@ -153,9 +182,10 @@ async def suggest_measures(
     grain_description: str,
     selected_dimensions: list[str | dict[str, Any]],
     snapshot: MetadataSnapshot,
+    selected_tables: list[str] | None = None,
 ) -> dict[str, Any]:
     """Step 6: Suggest measures for the fact table."""
-    context = _build_metadata_context(snapshot)
+    context = _build_metadata_context(snapshot, selected_tables)
 
     messages = [
         {

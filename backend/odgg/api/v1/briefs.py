@@ -78,6 +78,7 @@ def _brief_to_response(row: BriefRow) -> BriefResponse:
         source_db_type=row.source_db_type,
         database_name=row.database_name,
         metadata_snapshot=row.metadata_snapshot,
+        selected_tables=row.selected_tables,
         sections=[_section_to_response(s) for s in row.sections],
         created_at=row.created_at.isoformat(),
         updated_at=row.updated_at.isoformat(),
@@ -107,6 +108,7 @@ async def create_brief(body: BriefCreate, db: AsyncSession = Depends(get_db)) ->
         source_db_type=body.source_db_type,
         database_name=body.database_name,
         metadata_snapshot=body.metadata_snapshot,
+        selected_tables=body.selected_tables,
     )
     db.add(brief)
     await db.commit()
@@ -158,12 +160,14 @@ async def get_brief(brief_id: str, db: AsyncSession = Depends(get_db)) -> BriefR
 async def update_brief(
     brief_id: str, body: BriefUpdate, db: AsyncSession = Depends(get_db)
 ) -> BriefResponse:
-    """Update brief title or status."""
+    """Update brief title, status, or selected tables."""
     brief = await _get_brief_or_404(brief_id, db)
     if body.title is not None:
         brief.title = body.title
     if body.status is not None:
         brief.status = body.status.value
+    if body.selected_tables is not None:
+        brief.selected_tables = body.selected_tables
     await db.commit()
     await db.refresh(brief, ["sections"])
     return _brief_to_response(brief)
@@ -396,6 +400,7 @@ async def _draft_section_content(
     business_process: str = "",
     grain_description: str = "",
     dimensions: list | None = None,
+    selected_tables: list[str] | None = None,
 ) -> str:
     """Generate AI draft content for a section type.
 
@@ -409,7 +414,7 @@ async def _draft_section_content(
 
     try:
         if section_type == SectionType.BUSINESS_PROCESS:
-            result = await suggest_business_process(snapshot)
+            result = await suggest_business_process(snapshot, selected_tables)
             processes = result.get("processes", [])
             if processes:
                 bp = processes[0]
@@ -421,7 +426,7 @@ async def _draft_section_content(
             return "[AI could not identify a business process]"
 
         elif section_type == SectionType.GRAIN:
-            result = await suggest_grain(business_process, snapshot)
+            result = await suggest_grain(business_process, snapshot, selected_tables)
             options = result.get("options", [])
             recommended = next((o for o in options if o.get("recommended")), None)
             opt = recommended or (options[0] if options else None)
@@ -434,7 +439,9 @@ async def _draft_section_content(
             return "[AI could not determine grain]"
 
         elif section_type == SectionType.DIMENSION:
-            result = await suggest_dimensions(business_process, grain_description, snapshot)
+            result = await suggest_dimensions(
+                business_process, grain_description, snapshot, selected_tables
+            )
             dims = result.get("dimensions", [])
             if dims:
                 lines = []
@@ -449,7 +456,7 @@ async def _draft_section_content(
 
         elif section_type == SectionType.MEASURE:
             result = await suggest_measures(
-                business_process, grain_description, dimensions, snapshot
+                business_process, grain_description, dimensions, snapshot, selected_tables
             )
             measures = result.get("measures", [])
             if measures:
@@ -477,6 +484,7 @@ async def _run_cascade(
     title: str,
     snapshot: MetadataSnapshot,
     db: AsyncSession,
+    selected_tables: list[str] | None = None,
 ) -> list[SectionResponse]:
     """Execute the 2-stage AI cascade and persist sections.
 
@@ -488,7 +496,9 @@ async def _run_cascade(
 
     # --- Stage 1a: Business Process ---
     brief = await _get_brief_or_404(brief_id, db)
-    bp_text = await _draft_section_content(SectionType.BUSINESS_PROCESS, brief, snapshot)
+    bp_text = await _draft_section_content(
+        SectionType.BUSINESS_PROCESS, brief, snapshot, selected_tables=selected_tables
+    )
     bp_section = SectionRow(
         brief_id=brief_id,
         section_type=SectionType.BUSINESS_PROCESS,
@@ -509,6 +519,7 @@ async def _run_cascade(
         brief,
         snapshot,
         business_process=bp_name,
+        selected_tables=selected_tables,
     )
     grain_section = SectionRow(
         brief_id=brief_id,
@@ -529,6 +540,7 @@ async def _run_cascade(
             snapshot,
             business_process=bp_name,
             grain_description=grain_text,
+            selected_tables=selected_tables,
         ),
         _draft_section_content(
             SectionType.MEASURE,
@@ -537,6 +549,7 @@ async def _run_cascade(
             business_process=bp_name,
             grain_description=grain_text,
             dimensions=[],
+            selected_tables=selected_tables,
         ),
     )
 
@@ -595,10 +608,11 @@ async def draft_brief_sections(
         await db.refresh(brief)
 
     snapshot = MetadataSnapshot(**brief.metadata_snapshot)
+    sel_tables = brief.selected_tables
 
     if not stream:
         # Synchronous JSON mode — easier to test
-        sections = await _run_cascade(brief_id, brief.title, snapshot, db)
+        sections = await _run_cascade(brief_id, brief.title, snapshot, db, sel_tables)
         return [s.model_dump() for s in sections]
 
     # SSE streaming mode
@@ -614,7 +628,8 @@ async def draft_brief_sections(
                 # Stage 1a: BP
                 yield _sse_event("drafting", {"section": "business_process"})
                 bp_text = await _draft_section_content(
-                    SectionType.BUSINESS_PROCESS, sse_brief, snapshot
+                    SectionType.BUSINESS_PROCESS, sse_brief, snapshot,
+                    selected_tables=sel_tables,
                 )
                 bp_section = SectionRow(
                     brief_id=brief_id,
@@ -642,6 +657,7 @@ async def draft_brief_sections(
                     sse_brief,
                     snapshot,
                     business_process=bp_name,
+                    selected_tables=sel_tables,
                 )
                 grain_section = SectionRow(
                     brief_id=brief_id,
@@ -669,6 +685,7 @@ async def draft_brief_sections(
                         snapshot,
                         business_process=bp_name,
                         grain_description=grain_text,
+                        selected_tables=sel_tables,
                     ),
                     _draft_section_content(
                         SectionType.MEASURE,
@@ -677,6 +694,7 @@ async def draft_brief_sections(
                         business_process=bp_name,
                         grain_description=grain_text,
                         dimensions=[],
+                        selected_tables=sel_tables,
                     ),
                 )
 
