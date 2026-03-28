@@ -1,4 +1,8 @@
-"""Modeling engine — Kimball 4-step AI-guided dimensional modeling."""
+"""Modeling engine — Kimball 4-step AI-guided dimensional modeling.
+
+All suggest_* functions take plain args (not SessionState) so they can
+be called from both the wizard and the brief editor.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +12,6 @@ from typing import Any
 
 from odgg.models.dimensional import Dimension, DimensionalModel, FactTable, Measure
 from odgg.models.metadata import MetadataSnapshot
-from odgg.models.session import SessionState, StepStatus
 from odgg.services.llm_router import chat_completion
 from odgg.services.sanitizer import detect_prompt_injection, sanitize_for_prompt
 
@@ -31,10 +34,9 @@ def _build_metadata_context(snapshot: MetadataSnapshot) -> str:
     lines.append(f"\nRelationships ({len(snapshot.relationships)}):")
     for rel in snapshot.relationships:
         inferred = " (inferred)" if rel.is_inferred else ""
-        lines.append(
-            f"  - {sanitize_for_prompt(rel.source_table)}.{sanitize_for_prompt(rel.source_column)} "
-            f"-> {sanitize_for_prompt(rel.target_table)}.{sanitize_for_prompt(rel.target_column)}{inferred}"
-        )
+        src = f"{sanitize_for_prompt(rel.source_table)}.{sanitize_for_prompt(rel.source_column)}"
+        tgt = f"{sanitize_for_prompt(rel.target_table)}.{sanitize_for_prompt(rel.target_column)}"
+        lines.append(f"  - {src} -> {tgt}{inferred}")
 
     context = "\n".join(lines)
 
@@ -43,16 +45,15 @@ def _build_metadata_context(snapshot: MetadataSnapshot) -> str:
         logger.warning("Potential prompt injection detected in metadata context")
         # Strip the suspicious content but continue with basic table names
         safe_lines = [f"Database: {sanitize_for_prompt(snapshot.database_name)}"]
-        safe_lines.append("Tables: " + ", ".join(
-            sanitize_for_prompt(t.name) for t in snapshot.tables
-        ))
+        safe_lines.append(
+            "Tables: " + ", ".join(sanitize_for_prompt(t.name) for t in snapshot.tables)
+        )
         return "\n".join(safe_lines)
 
     return context
 
 
 async def suggest_business_process(
-    session: SessionState,
     snapshot: MetadataSnapshot,
 ) -> dict[str, Any]:
     """Step 3: Suggest business processes based on metadata."""
@@ -64,9 +65,10 @@ async def suggest_business_process(
             "content": (
                 "You are a Kimball dimensional modeling expert. Analyze the database schema "
                 "and suggest business processes suitable for dimensional modeling. "
-                "A business process is a measurable event (e.g., order processing, inventory management). "
-                "Return JSON with: {\"processes\": [{\"name\": str, \"description\": str, "
-                "\"involved_tables\": [str], \"confidence\": float}]}"
+                "A business process is a measurable event "
+                "(e.g., order processing, inventory management). "
+                'Return JSON with: {"processes": [{"name": str, "description": str, '
+                '"involved_tables": [str], "confidence": float}]}'
             ),
         },
         {
@@ -80,7 +82,7 @@ async def suggest_business_process(
 
 
 async def suggest_grain(
-    session: SessionState,
+    business_process: str,
     snapshot: MetadataSnapshot,
 ) -> dict[str, Any]:
     """Step 4: Suggest grain for the selected business process."""
@@ -93,15 +95,15 @@ async def suggest_grain(
                 "You are a Kimball dimensional modeling expert. Given a business process "
                 "and database schema, suggest the appropriate grain (level of detail) for "
                 "the fact table. Explain the tradeoffs between different grain options. "
-                "Return JSON with: {\"options\": [{\"description\": str, "
-                "\"grain_columns\": [str], \"source_table\": str, \"row_count\": int|null, "
-                "\"recommended\": bool, \"reasoning\": str}]}"
+                'Return JSON with: {"options": [{"description": str, '
+                '"grain_columns": [str], "source_table": str, "row_count": int|null, '
+                '"recommended": bool, "reasoning": str}]}'
             ),
         },
         {
             "role": "user",
             "content": (
-                f"Business process: {sanitize_for_prompt(session.business_process)}\n\n"
+                f"Business process: {sanitize_for_prompt(business_process)}\n\n"
                 f"Database schema:\n{context}"
             ),
         },
@@ -112,7 +114,8 @@ async def suggest_grain(
 
 
 async def suggest_dimensions(
-    session: SessionState,
+    business_process: str,
+    grain_description: str,
     snapshot: MetadataSnapshot,
 ) -> dict[str, Any]:
     """Step 5: Suggest dimensions for the fact table."""
@@ -125,17 +128,17 @@ async def suggest_dimensions(
                 "You are a Kimball dimensional modeling expert. Given a business process, "
                 "grain, and schema, suggest dimensions for the star schema. Include a date "
                 "dimension if time-based data exists. Identify degenerate dimensions. "
-                "Return JSON with: {\"dimensions\": [{\"name\": str (use dim_ prefix), "
-                "\"source_table\": str, \"columns\": [str], \"natural_key\": str, "
-                "\"is_date_dimension\": bool, \"is_degenerate\": bool, "
-                "\"description\": str, \"confidence\": float}]}"
+                'Return JSON with: {"dimensions": [{"name": str (use dim_ prefix), '
+                '"source_table": str, "columns": [str], "natural_key": str, '
+                '"is_date_dimension": bool, "is_degenerate": bool, '
+                '"description": str, "confidence": float}]}'
             ),
         },
         {
             "role": "user",
             "content": (
-                f"Business process: {sanitize_for_prompt(session.business_process)}\n"
-                f"Grain: {sanitize_for_prompt(session.grain_description)}\n\n"
+                f"Business process: {sanitize_for_prompt(business_process)}\n"
+                f"Grain: {sanitize_for_prompt(grain_description)}\n\n"
                 f"Database schema:\n{context}"
             ),
         },
@@ -146,7 +149,9 @@ async def suggest_dimensions(
 
 
 async def suggest_measures(
-    session: SessionState,
+    business_process: str,
+    grain_description: str,
+    selected_dimensions: list[str | dict[str, Any]],
     snapshot: MetadataSnapshot,
 ) -> dict[str, Any]:
     """Step 6: Suggest measures for the fact table."""
@@ -159,18 +164,18 @@ async def suggest_measures(
                 "You are a Kimball dimensional modeling expert. Given a business process, "
                 "grain, dimensions, and schema, suggest measures for the fact table. "
                 "Identify numeric columns suitable for aggregation. "
-                "Return JSON with: {\"measures\": [{\"name\": str, "
-                "\"source_column\": str, \"source_table\": str, "
-                "\"aggregation\": str (SUM|AVG|COUNT|MIN|MAX|COUNT_DISTINCT), "
-                "\"data_type\": str, \"description\": str, \"confidence\": float}]}"
+                'Return JSON with: {"measures": [{"name": str, '
+                '"source_column": str, "source_table": str, '
+                '"aggregation": str (SUM|AVG|COUNT|MIN|MAX|COUNT_DISTINCT), '
+                '"data_type": str, "description": str, "confidence": float}]}'
             ),
         },
         {
             "role": "user",
             "content": (
-                f"Business process: {sanitize_for_prompt(session.business_process)}\n"
-                f"Grain: {sanitize_for_prompt(session.grain_description)}\n"
-                f"Dimensions: {json.dumps(session.selected_dimensions)}\n\n"
+                f"Business process: {sanitize_for_prompt(business_process)}\n"
+                f"Grain: {sanitize_for_prompt(grain_description)}\n"
+                f"Dimensions: {json.dumps(selected_dimensions)}\n\n"
                 f"Database schema:\n{context}"
             ),
         },
@@ -180,16 +185,26 @@ async def suggest_measures(
     return result if isinstance(result, dict) else result.model_dump()
 
 
-def build_dimensional_model(session: SessionState) -> DimensionalModel:
-    """Step 7: Assemble and validate the dimensional model from session state."""
+def build_dimensional_model(
+    business_process: str,
+    grain_description: str,
+    selected_dimensions: list[str | dict[str, Any]],
+    selected_measures: list[dict[str, Any] | Measure],
+) -> DimensionalModel:
+    """Assemble and validate the dimensional model from plain args.
+
+    Works as the bridge between both wizard SessionState and brief editor.
+    """
     dimensions = []
-    for dim_data in session.selected_dimensions:
+    for dim_data in selected_dimensions:
         if isinstance(dim_data, str):
             # Simple string reference — create minimal dimension
-            dimensions.append(Dimension(
-                name=f"dim_{dim_data}" if not dim_data.startswith("dim_") else dim_data,
-                source_table=dim_data.replace("dim_", ""),
-            ))
+            dimensions.append(
+                Dimension(
+                    name=f"dim_{dim_data}" if not dim_data.startswith("dim_") else dim_data,
+                    source_table=dim_data.replace("dim_", ""),
+                )
+            )
         elif isinstance(dim_data, dict):
             # Filter to only Dimension model fields (AI may include extra keys like confidence)
             valid_fields = Dimension.model_fields.keys()
@@ -198,7 +213,7 @@ def build_dimensional_model(session: SessionState) -> DimensionalModel:
 
     measures = []
     valid_measure_fields = Measure.model_fields.keys()
-    for m in session.selected_measures:
+    for m in selected_measures:
         if isinstance(m, dict):
             filtered = {k: v for k, v in m.items() if k in valid_measure_fields}
             measures.append(Measure(**filtered))
@@ -207,8 +222,8 @@ def build_dimensional_model(session: SessionState) -> DimensionalModel:
 
     # Build fact table
     fact = FactTable(
-        name=f"fact_{session.business_process.lower().replace(' ', '_')}",
-        grain_description=session.grain_description,
+        name=f"fact_{business_process.lower().replace(' ', '_')}",
+        grain_description=grain_description,
         grain_columns=["id"],  # Will be refined from grain selection
         measures=measures,
         dimension_keys=[f"{d.name}_key" for d in dimensions if not d.is_degenerate],
@@ -216,10 +231,8 @@ def build_dimensional_model(session: SessionState) -> DimensionalModel:
     )
 
     # Build and validate the complete model
-    model = DimensionalModel(
-        business_process=session.business_process,
+    return DimensionalModel(
+        business_process=business_process,
         fact_table=fact,
         dimensions=dimensions,
     )
-
-    return model

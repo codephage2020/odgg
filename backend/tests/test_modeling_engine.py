@@ -1,12 +1,11 @@
 """Tests for modeling engine — context building and model assembly."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from odgg.models.dimensional import DimensionalModel
 from odgg.models.metadata import ColumnInfo, MetadataSnapshot, RelationshipInfo, TableInfo
-from odgg.models.session import SessionState
 from odgg.services.modeling_engine import (
     _build_metadata_context,
     build_dimensional_model,
@@ -22,7 +21,12 @@ def sample_snapshot() -> MetadataSnapshot:
                 name="orders",
                 schema_name="public",
                 columns=[
-                    ColumnInfo(name="order_id", data_type="integer", nullable=False, is_primary_key=True),
+                    ColumnInfo(
+                        name="order_id",
+                        data_type="integer",
+                        nullable=False,
+                        is_primary_key=True,
+                    ),
                     ColumnInfo(name="customer_id", data_type="integer", nullable=False),
                     ColumnInfo(name="total", data_type="numeric", nullable=True),
                 ],
@@ -57,30 +61,30 @@ def sample_snapshot() -> MetadataSnapshot:
 
 
 @pytest.fixture
-def session_with_model_data() -> SessionState:
-    """Session with enough data to build a dimensional model."""
-    session = SessionState(session_id="test-123")
-    session.business_process = "order processing"
-    session.grain_description = "One row per order"
-    session.selected_dimensions = [
-        {
-            "name": "dim_customer",
-            "source_table": "customer",
-            "columns": ["name"],
-            "natural_key": "id",
-            "description": "Customer dimension",
-        }
-    ]
-    session.selected_measures = [
-        {
-            "name": "total_amount",
-            "source_column": "total",
-            "source_table": "orders",
-            "aggregation": "SUM",
-            "data_type": "NUMERIC",
-        }
-    ]
-    return session
+def model_args() -> dict:
+    """Plain args for build_dimensional_model."""
+    return {
+        "business_process": "order processing",
+        "grain_description": "One row per order",
+        "selected_dimensions": [
+            {
+                "name": "dim_customer",
+                "source_table": "customer",
+                "columns": ["name"],
+                "natural_key": "id",
+                "description": "Customer dimension",
+            }
+        ],
+        "selected_measures": [
+            {
+                "name": "total_amount",
+                "source_column": "total",
+                "source_table": "orders",
+                "aggregation": "SUM",
+                "data_type": "NUMERIC",
+            }
+        ],
+    }
 
 
 class TestBuildMetadataContext:
@@ -118,8 +122,7 @@ class TestBuildMetadataContext:
     def test_caps_columns_at_20(self):
         """Tables with >20 columns are capped."""
         many_cols = [
-            ColumnInfo(name=f"col_{i}", data_type="text", nullable=True)
-            for i in range(30)
+            ColumnInfo(name=f"col_{i}", data_type="text", nullable=True) for i in range(30)
         ]
         snapshot = MetadataSnapshot(
             tables=[
@@ -137,8 +140,8 @@ class TestBuildMetadataContext:
 
 
 class TestBuildDimensionalModel:
-    def test_builds_valid_model(self, session_with_model_data):
-        model = build_dimensional_model(session_with_model_data)
+    def test_builds_valid_model(self, model_args):
+        model = build_dimensional_model(**model_args)
         assert isinstance(model, DimensionalModel)
         assert model.business_process == "order processing"
         assert model.fact_table.name == "fact_order_processing"
@@ -147,47 +150,47 @@ class TestBuildDimensionalModel:
 
     def test_string_dimension_reference(self):
         """Simple string references are converted to Dimension objects."""
-        session = SessionState(session_id="test")
-        session.business_process = "sales"
-        session.grain_description = "One row per sale"
-        session.selected_dimensions = ["customer"]
-        session.selected_measures = [
-            {
-                "name": "amount",
-                "source_column": "amount",
-                "source_table": "sales",
-                "aggregation": "SUM",
-                "data_type": "NUMERIC",
-            }
-        ]
-        model = build_dimensional_model(session)
+        model = build_dimensional_model(
+            business_process="sales",
+            grain_description="One row per sale",
+            selected_dimensions=["customer"],
+            selected_measures=[
+                {
+                    "name": "amount",
+                    "source_column": "amount",
+                    "source_table": "sales",
+                    "aggregation": "SUM",
+                    "data_type": "NUMERIC",
+                }
+            ],
+        )
         assert model.dimensions[0].name == "dim_customer"
         assert model.dimensions[0].source_table == "customer"
 
     def test_string_dimension_with_prefix(self):
         """String references already with dim_ prefix are preserved."""
-        session = SessionState(session_id="test")
-        session.business_process = "sales"
-        session.grain_description = "One row per sale"
-        session.selected_dimensions = ["dim_product"]
-        session.selected_measures = [
-            {
-                "name": "amount",
-                "source_column": "amount",
-                "source_table": "sales",
-                "aggregation": "SUM",
-                "data_type": "NUMERIC",
-            }
-        ]
-        model = build_dimensional_model(session)
+        model = build_dimensional_model(
+            business_process="sales",
+            grain_description="One row per sale",
+            selected_dimensions=["dim_product"],
+            selected_measures=[
+                {
+                    "name": "amount",
+                    "source_column": "amount",
+                    "source_table": "sales",
+                    "aggregation": "SUM",
+                    "data_type": "NUMERIC",
+                }
+            ],
+        )
         assert model.dimensions[0].name == "dim_product"
 
-    def test_fact_table_name_from_business_process(self, session_with_model_data):
-        model = build_dimensional_model(session_with_model_data)
+    def test_fact_table_name_from_business_process(self, model_args):
+        model = build_dimensional_model(**model_args)
         assert model.fact_table.name == "fact_order_processing"
 
-    def test_dimension_keys_generated(self, session_with_model_data):
-        model = build_dimensional_model(session_with_model_data)
+    def test_dimension_keys_generated(self, model_args):
+        model = build_dimensional_model(**model_args)
         assert "dim_customer_key" in model.fact_table.dimension_keys
 
 
@@ -204,16 +207,16 @@ class TestSuggestBusinessProcess:
                 }
             ]
         }
-        session = SessionState(session_id="test")
-        result = await suggest_business_process(session, sample_snapshot)
+        result = await suggest_business_process(sample_snapshot)
         assert mock_chat.called
         assert "processes" in result
 
     @patch("odgg.services.modeling_engine.chat_completion")
     async def test_sanitizes_metadata(self, mock_chat, sample_snapshot):
         mock_chat.return_value = {"processes": []}
-        session = SessionState(session_id="test")
-        await suggest_business_process(session, sample_snapshot)
+        await suggest_business_process(sample_snapshot)
         # Check that the messages were constructed properly
         call_args = mock_chat.call_args[0][0]
-        assert any("Analyze this database" in m["content"] for m in call_args if m["role"] == "user")
+        assert any(
+            "Analyze this database" in m["content"] for m in call_args if m["role"] == "user"
+        )

@@ -19,6 +19,7 @@ class DiscoverRequest(BaseModel):
     connection_url: str  # Passed in request body, never logged
     schema_name: str = "public"
     session_id: str | None = None  # Optional: auto-store metadata in session
+    brief_id: str | None = None  # Optional: auto-store metadata in brief
 
 
 @router.post("/discover", response_model=MetadataSnapshot)
@@ -38,10 +39,28 @@ async def discover(req: DiscoverRequest) -> MetadataSnapshot:
         # Store metadata in session if session_id provided
         if req.session_id:
             from odgg.api.v1.sessions import _sessions
+
             session = _sessions.get(req.session_id)
             if session:
                 session.metadata_snapshot = snapshot.model_dump()
                 logger.info("Stored metadata in session %s", req.session_id)
+
+        # Store metadata in brief if brief_id provided
+        if req.brief_id:
+            from sqlalchemy import select
+
+            from odgg.core.database import async_session
+            from odgg.models.brief import BriefRow
+
+            async with async_session() as db:
+                stmt = select(BriefRow).where(BriefRow.id == req.brief_id)
+                result = await db.execute(stmt)
+                brief = result.scalar_one_or_none()
+                if brief:
+                    brief.metadata_snapshot = snapshot.model_dump()
+                    brief.database_name = snapshot.database_name
+                    await db.commit()
+                    logger.info("Stored metadata in brief %s", req.brief_id)
 
         return snapshot
     except Exception as e:

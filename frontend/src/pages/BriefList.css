@@ -1,0 +1,155 @@
+/* Brief list page */
+
+.brief-list-page {
+  min-height: 100vh;
+  background: var(--bg-primary, #fafaf9);
+  color: var(--text-primary, #1a1a1a);
+}
+
+.brief-list-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border-subtle, #e5e5e5);
+  background: var(--bg-surface, #ffffff);
+}
+.brief-list-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.brief-nav-link {
+  font-size: 13px;
+  color: var(--text-secondary, #6b6b6b);
+  background: none;
+  border: 1px solid var(--border-subtle, #ddd);
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.brief-nav-link:hover {
+  background: var(--bg-hover, #f0f0f0);
+}
+
+.brief-list-main {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.brief-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.brief-list-toolbar h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.brief-create-btn {
+  padding: 8px 16px;
+  background: var(--accent-primary, #4a90d9);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.brief-create-btn:hover {
+  opacity: 0.9;
+}
+.brief-create-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.brief-list-error {
+  margin-bottom: 16px;
+}
+
+.brief-list-loading,
+.brief-list-empty {
+  text-align: center;
+  padding: 48px 0;
+  color: var(--text-secondary, #6b6b6b);
+}
+
+.brief-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.brief-list-card {
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e5e5);
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  position: relative;
+}
+.brief-list-card:hover {
+  border-color: var(--accent-primary, #4a90d9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.brief-list-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.brief-card-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.brief-card-status,
+.brief-card-db,
+.brief-card-sections {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--bg-subtle, #f0f0f0);
+  color: var(--text-secondary, #6b6b6b);
+}
+
+.brief-card-date {
+  font-size: 12px;
+  color: var(--text-tertiary, #999);
+}
+
+.brief-card-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  font-size: 16px;
+  color: var(--text-tertiary, #999);
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.brief-list-card:hover .brief-card-delete {
+  opacity: 1;
+}
+.brief-card-delete:hover {
+  background: var(--bg-hover, #f0f0f0);
+  color: #e55;
+}
