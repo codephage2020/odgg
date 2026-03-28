@@ -2,6 +2,19 @@
 
 All notable changes to ODGG will be documented in this file.
 
+## [0.1.1.0] - 2026-03-28
+
+### Added
+- Table selection UI for large schemas (500+ tables) with search, select all/none
+- Auto-select first 50 tables when schema exceeds threshold, hidden for small schemas
+- Server-side table filtering in `_build_metadata_context` via `selected_tables` parameter
+- `selected_tables` field on Brief model (persisted as JSON)
+- Input validation: `selected_tables` list capped at 500 entries
+
+### Fixed
+- Server-side enforcement of MAX_TABLES_FOR_LLM (50) prevents token overflow regardless of selection
+- Prompt injection fallback now respects table selection filter instead of leaking all table names
+
 ## [0.1.0.0] - 2026-03-28
 
 ### Added
