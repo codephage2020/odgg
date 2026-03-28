@@ -36,6 +36,13 @@ def _build_metadata_context(
         allowed = set(selected_tables)
         tables = [t for t in tables if t.name in allowed]
 
+    # Server-side guard: cap tables sent to LLM regardless of selection
+    if len(tables) > MAX_TABLES_FOR_LLM:
+        logger.warning(
+            "Capping tables from %d to %d for LLM context", len(tables), MAX_TABLES_FOR_LLM
+        )
+        tables = tables[:MAX_TABLES_FOR_LLM]
+
     lines = [f"Database: {sanitize_for_prompt(snapshot.database_name)}"]
     if selected_tables is not None:
         lines.append(
@@ -72,7 +79,7 @@ def _build_metadata_context(
         # Strip the suspicious content but continue with basic table names
         safe_lines = [f"Database: {sanitize_for_prompt(snapshot.database_name)}"]
         safe_lines.append(
-            "Tables: " + ", ".join(sanitize_for_prompt(t.name) for t in snapshot.tables)
+            "Tables: " + ", ".join(sanitize_for_prompt(t.name) for t in tables)
         )
         return "\n".join(safe_lines)
 

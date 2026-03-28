@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -209,6 +209,9 @@ class SectionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+MAX_SELECTED_TABLES = 500
+
+
 class BriefCreate(BaseModel):
     """Create a new modeling brief."""
 
@@ -218,6 +221,13 @@ class BriefCreate(BaseModel):
     metadata_snapshot: dict[str, Any] | None = None
     selected_tables: list[str] | None = None
 
+    @field_validator("selected_tables")
+    @classmethod
+    def validate_selected_tables(cls, v: list[str] | None) -> list[str] | None:
+        if v is not None and len(v) > MAX_SELECTED_TABLES:
+            raise ValueError(f"selected_tables cannot exceed {MAX_SELECTED_TABLES} entries")
+        return v
+
 
 class BriefUpdate(BaseModel):
     """Partial update for a brief."""
@@ -225,6 +235,13 @@ class BriefUpdate(BaseModel):
     title: str | None = None
     status: BriefStatus | None = None
     selected_tables: list[str] | None = None
+
+    @field_validator("selected_tables")
+    @classmethod
+    def validate_selected_tables(cls, v: list[str] | None) -> list[str] | None:
+        if v is not None and len(v) > MAX_SELECTED_TABLES:
+            raise ValueError(f"selected_tables cannot exceed {MAX_SELECTED_TABLES} entries")
+        return v
 
 
 class BriefResponse(BaseModel):
