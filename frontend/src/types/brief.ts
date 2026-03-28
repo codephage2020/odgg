@@ -51,6 +51,7 @@ export interface Brief {
   source_db_type: string;
   database_name: string;
   metadata_snapshot?: Record<string, unknown> | null;
+  selected_tables?: string[] | null;
   sections: BriefSection[];
   created_at: string;
   updated_at: string;

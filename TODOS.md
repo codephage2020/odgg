@@ -5,13 +5,6 @@ Branch: main
 
 ## Deferred from Modeling Brief Editor v1
 
-### TODO-001: Large schema handling (500+ tables)
-**What:** Add table selection UI in SchemasSidebar. When schema has 500+ tables, let user check which tables to include in LLM context.
-**Why:** _build_metadata_context() in modeling_engine.py sends ALL tables to the prompt. Large schemas exceed token limits and produce garbage AI suggestions. Design doc line 164 specifies this: "Cap metadata context at 50 tables."
-**Effort:** human: ~2hr / CC: ~15 min
-**Depends on:** SchemasSidebar component exists (part of brief editor PR)
-**Added:** 2026-03-28
-
 ### TODO-002: Markdown export with stakeholder-friendly formatting
 **What:** Polished Markdown export of the modeling brief for stakeholder review. Not raw section dump. Headers, tables, context for non-technical readers.
 **Why:** The whole point of the brief is capturing domain knowledge for stakeholder confirmation. Jinja2 template (same pattern as data_dictionary.md.j2).
@@ -32,3 +25,9 @@ Branch: main
 **Effort:** human: ~5min / CC: ~2 min
 **Depends on:** Nothing
 **Added:** 2026-03-28
+
+## Completed
+
+### TODO-001: Large schema handling (500+ tables)
+**What:** Table selection UI (TableSelector component) with search, select all/none. Backend: server-side MAX_TABLES_FOR_LLM enforcement, selected_tables filtering in _build_metadata_context, input validation.
+**Completed:** v0.1.1.0 (2026-03-28)

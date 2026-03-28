@@ -114,6 +114,25 @@ class TestBriefCRUD:
         resp = await client.delete("/api/v1/briefs/nonexistent-id")
         assert resp.status_code == 404
 
+    async def test_create_brief_with_selected_tables(self, client: AsyncClient):
+        resp = await client.post(
+            "/api/v1/briefs",
+            json={"title": "Filtered", "selected_tables": ["orders", "lineitem"]},
+        )
+        assert resp.status_code == 201
+        assert resp.json()["selected_tables"] == ["orders", "lineitem"]
+
+    async def test_update_selected_tables(self, client: AsyncClient):
+        create_resp = await client.post("/api/v1/briefs", json={})
+        brief_id = create_resp.json()["id"]
+        assert create_resp.json()["selected_tables"] is None
+        resp = await client.patch(
+            f"/api/v1/briefs/{brief_id}",
+            json={"selected_tables": ["orders", "customer"]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["selected_tables"] == ["orders", "customer"]
+
 
 # ---------------------------------------------------------------------------
 # Section CRUD

@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -83,6 +83,8 @@ class BriefRow(Base):
 
     # Schema snapshot stored as JSON blob
     metadata_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # User-selected tables for LLM context (None = all tables)
+    selected_tables: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
@@ -207,6 +209,9 @@ class SectionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+MAX_SELECTED_TABLES = 500
+
+
 class BriefCreate(BaseModel):
     """Create a new modeling brief."""
 
@@ -214,6 +219,14 @@ class BriefCreate(BaseModel):
     source_db_type: str = "postgresql"
     database_name: str = ""
     metadata_snapshot: dict[str, Any] | None = None
+    selected_tables: list[str] | None = None
+
+    @field_validator("selected_tables")
+    @classmethod
+    def validate_selected_tables(cls, v: list[str] | None) -> list[str] | None:
+        if v is not None and len(v) > MAX_SELECTED_TABLES:
+            raise ValueError(f"selected_tables cannot exceed {MAX_SELECTED_TABLES} entries")
+        return v
 
 
 class BriefUpdate(BaseModel):
@@ -221,6 +234,14 @@ class BriefUpdate(BaseModel):
 
     title: str | None = None
     status: BriefStatus | None = None
+    selected_tables: list[str] | None = None
+
+    @field_validator("selected_tables")
+    @classmethod
+    def validate_selected_tables(cls, v: list[str] | None) -> list[str] | None:
+        if v is not None and len(v) > MAX_SELECTED_TABLES:
+            raise ValueError(f"selected_tables cannot exceed {MAX_SELECTED_TABLES} entries")
+        return v
 
 
 class BriefResponse(BaseModel):
@@ -232,6 +253,7 @@ class BriefResponse(BaseModel):
     source_db_type: str
     database_name: str
     metadata_snapshot: dict[str, Any] | None = None
+    selected_tables: list[str] | None = None
     sections: list[SectionResponse] = []
     created_at: str
     updated_at: str
