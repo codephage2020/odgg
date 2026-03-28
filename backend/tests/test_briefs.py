@@ -566,3 +566,79 @@ class TestCascadeDrafting:
     async def test_cascade_not_found(self, client: AsyncClient):
         resp = await client.post("/api/v1/briefs/nonexistent/draft?stream=false")
         assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Code Generation from Brief
+# ---------------------------------------------------------------------------
+
+
+class TestBriefCodeGeneration:
+    @pytest.fixture
+    async def brief_with_sections(self, client: AsyncClient) -> str:
+        """Create a brief with structured sections for codegen."""
+        resp = await client.post(
+            "/api/v1/briefs",
+            json={"title": "Codegen Test", "metadata_snapshot": _SAMPLE_SNAPSHOT},
+        )
+        brief_id = resp.json()["id"]
+
+        # Add BP section
+        await client.post(
+            f"/api/v1/briefs/{brief_id}/sections",
+            json={
+                "section_type": "business_process",
+                "content": "**Order Processing**\n\nTrack orders",
+            },
+        )
+        # Add grain
+        await client.post(
+            f"/api/v1/briefs/{brief_id}/sections",
+            json={
+                "section_type": "grain",
+                "content": "One row per order",
+            },
+        )
+        # Add dimension with structured fields
+        await client.post(
+            f"/api/v1/briefs/{brief_id}/sections",
+            json={
+                "section_type": "dimension",
+                "name": "dim_customer",
+                "source_table": "customers",
+                "source_columns": ["id", "name"],
+                "content": "Customer dimension",
+            },
+        )
+        # Add measure with structured fields
+        await client.post(
+            f"/api/v1/briefs/{brief_id}/sections",
+            json={
+                "section_type": "measure",
+                "name": "total_revenue",
+                "source_table": "orders",
+                "source_column": "total",
+                "aggregation_type": "sum",
+                "data_type": "decimal",
+                "content": "Total order revenue",
+            },
+        )
+        return brief_id
+
+    async def test_generate_code_from_brief(self, client: AsyncClient, brief_with_sections: str):
+        resp = await client.post(f"/api/v1/briefs/{brief_with_sections}/generate")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "ddl" in data
+        assert "etl" in data
+        assert "data_dictionary" in data
+        assert "dbt" in data
+        # DDL should contain the fact table name
+        assert "fact_order_processing" in data["ddl"]
+        assert "dim_customer" in data["ddl"]
+
+    async def test_generate_without_sections_400(self, client: AsyncClient):
+        resp = await client.post("/api/v1/briefs", json={"title": "Empty"})
+        brief_id = resp.json()["id"]
+        resp = await client.post(f"/api/v1/briefs/{brief_id}/generate")
+        assert resp.status_code == 400

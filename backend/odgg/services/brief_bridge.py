@@ -55,11 +55,15 @@ class BriefModelSource:
             key=lambda s: s.position,
         ):
             if sec.name and sec.source_table:
+                columns = sec.source_columns or []
+                # Default natural_key to first column or 'id'
+                natural_key = columns[0] if columns else "id"
                 dims.append(
                     {
                         "name": sec.name,
                         "source_table": sec.source_table,
-                        "columns": sec.source_columns or [],
+                        "columns": columns,
+                        "natural_key": natural_key,
                         "description": sec.content,
                         "is_degenerate": sec.dimension_type == "degenerate",
                     }
