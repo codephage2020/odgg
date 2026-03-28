@@ -88,7 +88,7 @@ Two-service architecture with a reverse proxy pattern:
 - Data fetching: TanStack React Query
 - Diagram: React Flow (`@xyflow/react`) for star schema visualization
 - Components: `StepNavigator` (8-step flow), `NotebookCell` (step content), `ModelDiagram` (React Flow), `ConnectStep` (DB connection form), `CodeOutput` (generated code display), `chat/` (AI conversation UI)
-- Brief Editor: `BriefList` (card overview), `BriefEditor` (section document view), `BriefSectionCard` (per-section card with AI draft badge), `BriefSidebar` (section navigation), `BriefShimmer` (loading animation), `BriefConnectDialog` (DB connection for briefs)
+- Brief Editor: `BriefList` (card overview), `BriefEditor` (section document view), `BriefSectionCard` (per-section card with AI draft badge), `BriefSidebar` (section navigation), `BriefShimmer` (loading animation), `BriefConnectDialog` (DB connection for briefs), `TableSelector` (large schema table filtering with search/select all)
 
 ### Key Patterns
 
