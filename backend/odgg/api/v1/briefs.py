@@ -331,6 +331,59 @@ async def regenerate_section(
 
 
 # ---------------------------------------------------------------------------
+# Code Generation from Brief
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{brief_id}/generate")
+async def generate_from_brief(
+    brief_id: str,
+    include_dbt: bool = True,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Generate DDL, ETL, and dbt code from a brief's sections.
+
+    Uses the Protocol-based ModelSource bridge to extract structured
+    data from brief sections and feed it into the codegen engine.
+    """
+    from odgg.services.brief_bridge import BriefModelSource, build_model_from_source
+    from odgg.services.codegen import (
+        generate_data_dictionary,
+        generate_dbt_model,
+        generate_ddl,
+        generate_etl,
+    )
+
+    brief = await _get_brief_or_404(brief_id, db)
+    source = BriefModelSource(brief)
+
+    # Validate we have enough data
+    if not source.get_business_process():
+        raise HTTPException(
+            status_code=400,
+            detail="Brief has no business process section — draft sections first",
+        )
+    if not source.get_measures():
+        raise HTTPException(
+            status_code=400,
+            detail="Brief has no measure sections — add measures first",
+        )
+
+    model = build_model_from_source(source)
+
+    result = {
+        "ddl": generate_ddl(model),
+        "etl": generate_etl(model),
+        "data_dictionary": generate_data_dictionary(model),
+    }
+
+    if include_dbt:
+        result["dbt"] = generate_dbt_model(model)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # SSE Cascade Drafting
 # ---------------------------------------------------------------------------
 
