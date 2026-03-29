@@ -2,6 +2,15 @@
 
 All notable changes to ODGG will be documented in this file.
 
+## [0.1.2.0] - 2026-03-29
+
+### Added
+- Prompt quality eval suite for Kimball 4-step modeling (BP, grain, dimensions, measures)
+- TPC-H ground truth scoring with 4 scoring functions and pass rate thresholds
+- 9 structural tests (mock-based, always run) validating response shape and scoring logic
+- 5 live LLM tests gated behind `--run-llm` pytest flag, including full pipeline cascade
+- `llm` pytest marker registered in pyproject.toml with `--run-llm` conftest hook
+
 ## [0.1.1.0] - 2026-03-28
 
 ### Added
