@@ -2,6 +2,14 @@
 
 All notable changes to ODGG will be documented in this file.
 
+## [0.1.2.0] - 2026-03-29
+
+### Added
+- You can now measure prompt quality for all 4 Kimball modeling steps against TPC-H ground truth
+- 9 structural tests (mock-based, always run) validate response shape and scoring logic
+- 5 live LLM evals gated behind `--run-llm` pytest flag, including a full pipeline cascade test
+- `llm` pytest marker and `--run-llm` conftest hook make it easy to separate fast CI from slow evals
+
 ## [0.1.1.0] - 2026-03-28
 
 ### Added

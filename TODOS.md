@@ -12,12 +12,6 @@ Branch: main
 **Depends on:** ModelingBrief model exists
 **Added:** 2026-03-28
 
-### TODO-003: Prompt quality eval suite for brief sections
-**What:** Eval tests measuring AI draft quality per section type against TPC-H baseline. "Does BP draft correctly identify order processing? Does grain draft suggest right level?"
-**Why:** Prompt changes in modeling_engine.py are currently blind. No way to know if output got better or worse. Tests mock LLM responses, so prompt quality is untested.
-**Effort:** human: ~1 day / CC: ~30 min
-**Depends on:** Brief sections working + TPC-H sample database
-**Added:** 2026-03-28
 
 ### TODO-004: Update .impeccable.md for brief editor paradigm
 **What:** Add note to .impeccable.md that brief editor view follows "document is king" (not "canvas is king"). The ERD canvas serves the document in this mode.
@@ -31,3 +25,7 @@ Branch: main
 ### TODO-001: Large schema handling (500+ tables)
 **What:** Table selection UI (TableSelector component) with search, select all/none. Backend: server-side MAX_TABLES_FOR_LLM enforcement, selected_tables filtering in _build_metadata_context, input validation.
 **Completed:** v0.1.1.0 (2026-03-28)
+
+### TODO-003: Prompt quality eval suite for brief sections
+**What:** TPC-H ground truth scoring for all 4 Kimball steps. 9 structural + 5 live LLM tests with --run-llm flag. Scoring functions for BP, grain, dimensions, measures.
+**Completed:** v0.1.2.0 (2026-03-29)

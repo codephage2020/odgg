@@ -29,6 +29,10 @@ pytest tests/test_modeling_engine.py
 # Single test
 pytest tests/test_modeling_engine.py::test_suggest_grain -v
 
+# Eval suite (structural tests run by default, live LLM tests need flag)
+pytest tests/test_eval_brief_quality.py
+pytest tests/test_eval_brief_quality.py --run-llm   # include live LLM evals
+
 # Lint
 ruff check odgg/ tests/
 ruff format --check odgg/ tests/
@@ -98,6 +102,7 @@ Two-service architecture with a reverse proxy pattern:
 - The modeling engine sanitizes all database metadata before including it in LLM prompts (`sanitizer.py`)
 - Brief code generation uses `ModelSource` protocol — `BriefModelSource` (from brief sections) and `SessionModelSource` (from wizard sessions) are interchangeable
 - SSE cascade drafting: Business Process → Grain (sequential), then Dimensions + Measures (parallel via `asyncio.gather`)
+- Prompt quality evals: `test_eval_brief_quality.py` scores LLM output against TPC-H ground truth. Structural tests (mock-based) always run; live LLM tests require `--run-llm` flag and use the `@pytest.mark.llm` marker
 
 ## Conventions
 
