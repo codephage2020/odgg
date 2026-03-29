@@ -7,6 +7,7 @@ import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import PlainTextResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -26,6 +27,7 @@ from odgg.models.brief import (
     SectionUpdate,
 )
 from odgg.models.metadata import MetadataSnapshot
+from odgg.services.codegen import generate_brief_export
 from odgg.services.modeling_engine import (
     suggest_business_process,
     suggest_dimensions,
@@ -171,6 +173,25 @@ async def update_brief(
     await db.commit()
     await db.refresh(brief, ["sections"])
     return _brief_to_response(brief)
+
+
+@router.get("/{brief_id}/export", response_class=PlainTextResponse)
+async def export_brief(brief_id: str, db: AsyncSession = Depends(get_db)):
+    """Export a brief as stakeholder-friendly Markdown."""
+    brief = await _get_brief_or_404(brief_id, db)
+    sorted_sections = sorted(brief.sections, key=lambda s: s.position)
+    md = generate_brief_export(
+        title=brief.title,
+        status=brief.status,
+        source_db_type=brief.source_db_type,
+        database_name=brief.database_name,
+        updated_at=brief.updated_at.isoformat(),
+        sections=[
+            {"section_type": s.section_type, "content": s.content or ""}
+            for s in sorted_sections
+        ],
+    )
+    return PlainTextResponse(content=md, media_type="text/markdown")
 
 
 @router.delete("/{brief_id}", status_code=204)
@@ -616,8 +637,6 @@ async def draft_brief_sections(
         return [s.model_dump() for s in sections]
 
     # SSE streaming mode
-    title = brief.title
-
     async def event_generator():
         try:
             async with async_session() as sse_db:

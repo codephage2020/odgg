@@ -73,3 +73,23 @@ def generate_data_dictionary(model: DimensionalModel) -> str:
     """Generate a Markdown data dictionary for the model."""
     template = _env.get_template("data_dictionary.md.j2")
     return template.render(model=model)
+
+
+def generate_brief_export(
+    title: str,
+    status: str,
+    source_db_type: str,
+    database_name: str | None,
+    updated_at: str,
+    sections: list[dict],
+) -> str:
+    """Generate stakeholder-friendly Markdown export of a modeling brief."""
+    template = _env.get_template("brief_export.md.j2")
+    return template.render(
+        title=title,
+        status=status,
+        source_db_type=source_db_type,
+        database_name=database_name,
+        updated_at=updated_at,
+        sections=sections,
+    )
