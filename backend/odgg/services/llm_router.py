@@ -10,7 +10,7 @@ from typing import Any
 import litellm
 from pydantic import BaseModel
 
-from odgg.core.config import settings
+from odgg.core.config import get_llm_config
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +42,12 @@ _NO_TEMPERATURE_MODELS = {"kimi-k2.5", "kimi-for-coding"}
 _NO_SCHEMA_MODELS = {"kimi-k2.5", "kimi-for-coding"}
 
 
-def _build_model_string() -> str:
-    """Build the LiteLLM model string from settings."""
-    provider = settings.llm_provider
-    model = settings.llm_model
+def _build_model_string(cfg: dict[str, Any] | None = None) -> str:
+    """Build the LiteLLM model string from effective config."""
+    if cfg is None:
+        cfg = get_llm_config()
+    provider = cfg["provider"]
+    model = cfg["model"]
 
     if provider == "ollama":
         return f"ollama/{model}"
@@ -58,24 +60,30 @@ def _build_model_string() -> str:
     return f"openai/{model}"
 
 
-def _get_api_params() -> dict[str, Any]:
-    """Build API parameters from settings."""
+def _get_api_params(cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Build API parameters from effective config."""
+    if cfg is None:
+        cfg = get_llm_config()
     params: dict[str, Any] = {}
-    if settings.llm_api_key:
-        params["api_key"] = settings.llm_api_key
-    if settings.llm_base_url:
-        params["api_base"] = settings.llm_base_url
+    if cfg["api_key"]:
+        params["api_key"] = cfg["api_key"]
+    if cfg["base_url"]:
+        params["api_base"] = cfg["base_url"]
     return params
 
 
-def _model_supports_temperature() -> bool:
+def _model_supports_temperature(cfg: dict[str, Any] | None = None) -> bool:
     """Check if the current model supports the temperature parameter."""
-    return settings.llm_model not in _NO_TEMPERATURE_MODELS
+    if cfg is None:
+        cfg = get_llm_config()
+    return cfg["model"] not in _NO_TEMPERATURE_MODELS
 
 
-def _model_supports_schema() -> bool:
+def _model_supports_schema(cfg: dict[str, Any] | None = None) -> bool:
     """Check if the current model supports response_format with schema."""
-    return settings.llm_model not in _NO_SCHEMA_MODELS
+    if cfg is None:
+        cfg = get_llm_config()
+    return cfg["model"] not in _NO_SCHEMA_MODELS
 
 
 async def chat_completion(
@@ -91,11 +99,12 @@ async def chat_completion(
     - Prompt-based JSON guidance for models without schema support (Kimi, etc.)
     - Relaxed text-parse fallback for Ollama/smaller models
     """
-    model = _build_model_string()
-    api_params = _get_api_params()
+    cfg = get_llm_config()
+    model = _build_model_string(cfg)
+    api_params = _get_api_params(cfg)
 
     # For models without schema support, inject JSON instructions into prompt
-    if response_model and not _model_supports_schema():
+    if response_model and not _model_supports_schema(cfg):
         schema_str = json.dumps(response_model.model_json_schema(), indent=2)
         messages = [
             *messages,
@@ -113,16 +122,16 @@ async def chat_completion(
             kwargs: dict[str, Any] = {
                 "model": model,
                 "messages": messages,
-                "timeout": settings.llm_timeout,
+                "timeout": cfg["timeout"],
                 **api_params,
             }
 
             # Only set temperature if the model supports it
-            if _model_supports_temperature():
+            if _model_supports_temperature(cfg):
                 kwargs["temperature"] = temperature
 
             # Attempt structured output via response_format (only for compatible models)
-            if response_model and attempt < 2 and _model_supports_schema():
+            if response_model and attempt < 2 and _model_supports_schema(cfg):
                 schema = response_model.model_json_schema()
                 kwargs["response_format"] = {
                     "type": "json_object",
@@ -179,19 +188,20 @@ async def stream_completion(
     temperature: float = 0.3,
 ) -> AsyncGenerator[str, None]:
     """Stream a chat completion response as text chunks for SSE."""
-    model = _build_model_string()
-    api_params = _get_api_params()
+    cfg = get_llm_config()
+    model = _build_model_string(cfg)
+    api_params = _get_api_params(cfg)
 
     kwargs: dict[str, Any] = {
         "model": model,
         "messages": messages,
-        "timeout": settings.llm_timeout,
+        "timeout": cfg["timeout"],
         "stream": True,
         **api_params,
     }
 
     # Only set temperature if the model supports it
-    if _model_supports_temperature():
+    if _model_supports_temperature(cfg):
         kwargs["temperature"] = temperature
 
     response = await litellm.acompletion(**kwargs)

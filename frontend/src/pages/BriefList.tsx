@@ -33,6 +33,9 @@ export function BriefList() {
         <h1>ODGG</h1>
         <span className="wb-subtitle">Modeling Brief Editor</span>
         <div className="brief-header-spacer" />
+        <button className="brief-nav-link" onClick={() => navigate('/settings')}>
+          ⚙ AI 设置
+        </button>
         <button className="brief-nav-link" onClick={() => navigate('/wizard')}>
           打开向导 →
         </button>

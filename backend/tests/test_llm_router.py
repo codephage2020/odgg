@@ -7,70 +7,64 @@ import pytest
 from odgg.services.llm_router import _build_model_string, _get_api_params
 
 
+def _mock_cfg(**overrides):
+    """Build a mock LLM config dict with defaults."""
+    cfg = {
+        "provider": "openai",
+        "model": "gpt-4o",
+        "api_key": "",
+        "base_url": "",
+        "timeout": 30,
+    }
+    cfg.update(overrides)
+    return cfg
+
+
 class TestBuildModelString:
-    @patch("odgg.services.llm_router.settings")
-    def test_openai_provider(self, mock_settings):
-        mock_settings.llm_provider = "openai"
-        mock_settings.llm_model = "gpt-4o"
-        assert _build_model_string() == "openai/gpt-4o"
+    def test_openai_provider(self):
+        cfg = _mock_cfg(provider="openai", model="gpt-4o")
+        assert _build_model_string(cfg) == "openai/gpt-4o"
 
-    @patch("odgg.services.llm_router.settings")
-    def test_ollama_provider(self, mock_settings):
-        mock_settings.llm_provider = "ollama"
-        mock_settings.llm_model = "llama3.1"
-        assert _build_model_string() == "ollama/llama3.1"
+    def test_ollama_provider(self):
+        cfg = _mock_cfg(provider="ollama", model="llama3.1")
+        assert _build_model_string(cfg) == "ollama/llama3.1"
 
-    @patch("odgg.services.llm_router.settings")
-    def test_anthropic_provider(self, mock_settings):
-        mock_settings.llm_provider = "anthropic"
-        mock_settings.llm_model = "claude-3-sonnet"
-        assert _build_model_string() == "anthropic/claude-3-sonnet"
+    def test_anthropic_provider(self):
+        cfg = _mock_cfg(provider="anthropic", model="claude-3-sonnet")
+        assert _build_model_string(cfg) == "anthropic/claude-3-sonnet"
 
 
 class TestGetApiParams:
-    @patch("odgg.services.llm_router.settings")
-    def test_with_api_key(self, mock_settings):
-        mock_settings.llm_api_key = "sk-test123"
-        mock_settings.llm_base_url = ""
-        params = _get_api_params()
+    def test_with_api_key(self):
+        cfg = _mock_cfg(api_key="sk-test123", base_url="")
+        params = _get_api_params(cfg)
         assert params["api_key"] == "sk-test123"
         assert "api_base" not in params
 
-    @patch("odgg.services.llm_router.settings")
-    def test_with_base_url(self, mock_settings):
-        mock_settings.llm_api_key = ""
-        mock_settings.llm_base_url = "http://localhost:11434"
-        params = _get_api_params()
+    def test_with_base_url(self):
+        cfg = _mock_cfg(api_key="", base_url="http://localhost:11434")
+        params = _get_api_params(cfg)
         assert params["api_base"] == "http://localhost:11434"
         assert "api_key" not in params
 
-    @patch("odgg.services.llm_router.settings")
-    def test_both_params(self, mock_settings):
-        mock_settings.llm_api_key = "sk-key"
-        mock_settings.llm_base_url = "http://localhost:11434"
-        params = _get_api_params()
+    def test_both_params(self):
+        cfg = _mock_cfg(api_key="sk-key", base_url="http://localhost:11434")
+        params = _get_api_params(cfg)
         assert "api_key" in params
         assert "api_base" in params
 
-    @patch("odgg.services.llm_router.settings")
-    def test_no_params(self, mock_settings):
-        mock_settings.llm_api_key = ""
-        mock_settings.llm_base_url = ""
-        params = _get_api_params()
+    def test_no_params(self):
+        cfg = _mock_cfg(api_key="", base_url="")
+        params = _get_api_params(cfg)
         assert params == {}
 
 
 class TestChatCompletion:
     @patch("odgg.services.llm_router.litellm")
-    @patch("odgg.services.llm_router.settings")
-    async def test_returns_parsed_json(self, mock_settings, mock_litellm):
-        mock_settings.llm_provider = "openai"
-        mock_settings.llm_model = "gpt-4o"
-        mock_settings.llm_api_key = "sk-test"
-        mock_settings.llm_base_url = ""
-        mock_settings.llm_timeout = 30
+    @patch("odgg.services.llm_router.get_llm_config")
+    async def test_returns_parsed_json(self, mock_get_cfg, mock_litellm):
+        mock_get_cfg.return_value = _mock_cfg(api_key="sk-test")
 
-        # Mock the response
         mock_choice = MagicMock()
         mock_choice.message.content = '{"result": "test"}'
         mock_response = MagicMock()
@@ -83,13 +77,9 @@ class TestChatCompletion:
         assert result == {"result": "test"}
 
     @patch("odgg.services.llm_router.litellm")
-    @patch("odgg.services.llm_router.settings")
-    async def test_non_json_returns_content(self, mock_settings, mock_litellm):
-        mock_settings.llm_provider = "openai"
-        mock_settings.llm_model = "gpt-4o"
-        mock_settings.llm_api_key = "sk-test"
-        mock_settings.llm_base_url = ""
-        mock_settings.llm_timeout = 30
+    @patch("odgg.services.llm_router.get_llm_config")
+    async def test_non_json_returns_content(self, mock_get_cfg, mock_litellm):
+        mock_get_cfg.return_value = _mock_cfg(api_key="sk-test")
 
         mock_choice = MagicMock()
         mock_choice.message.content = "just plain text"
@@ -103,13 +93,9 @@ class TestChatCompletion:
         assert result == {"content": "just plain text"}
 
     @patch("odgg.services.llm_router.litellm")
-    @patch("odgg.services.llm_router.settings")
-    async def test_retries_on_failure(self, mock_settings, mock_litellm):
-        mock_settings.llm_provider = "openai"
-        mock_settings.llm_model = "gpt-4o"
-        mock_settings.llm_api_key = "sk-test"
-        mock_settings.llm_base_url = ""
-        mock_settings.llm_timeout = 30
+    @patch("odgg.services.llm_router.get_llm_config")
+    async def test_retries_on_failure(self, mock_get_cfg, mock_litellm):
+        mock_get_cfg.return_value = _mock_cfg(api_key="sk-test")
 
         # First call fails, second succeeds
         mock_choice = MagicMock()
@@ -127,13 +113,9 @@ class TestChatCompletion:
         assert mock_litellm.acompletion.call_count == 2
 
     @patch("odgg.services.llm_router.litellm")
-    @patch("odgg.services.llm_router.settings")
-    async def test_raises_after_max_retries(self, mock_settings, mock_litellm):
-        mock_settings.llm_provider = "openai"
-        mock_settings.llm_model = "gpt-4o"
-        mock_settings.llm_api_key = "sk-test"
-        mock_settings.llm_base_url = ""
-        mock_settings.llm_timeout = 30
+    @patch("odgg.services.llm_router.get_llm_config")
+    async def test_raises_after_max_retries(self, mock_get_cfg, mock_litellm):
+        mock_get_cfg.return_value = _mock_cfg(api_key="sk-test")
 
         mock_litellm.acompletion = AsyncMock(side_effect=Exception("permanent failure"))
 
