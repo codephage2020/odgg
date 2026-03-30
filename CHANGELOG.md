@@ -2,6 +2,17 @@
 
 All notable changes to ODGG will be documented in this file.
 
+## [0.1.3.0] - 2026-03-30
+
+### Added
+- `GET /briefs/{id}/export` endpoint returns a stakeholder-friendly Markdown document
+- Jinja2 template (`brief_export.md.j2`) renders title, metadata blockquote, typed section headers, and ODGG footer
+- `generate_brief_export()` codegen function for briefs (same pattern as data dictionary)
+- 8 tests covering export endpoint: content-type, title, metadata, all section types, empty brief, 404
+
+### Fixed
+- Removed unused `title` variable in SSE cascade drafting code path
+
 ## [0.1.2.0] - 2026-03-29
 
 ### Added
