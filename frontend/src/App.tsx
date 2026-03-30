@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { WizardPage } from './pages/WizardPage';
 import { BriefList } from './pages/BriefList';
 import { BriefEditor } from './pages/BriefEditor';
+import { AiSettings } from './pages/AiSettings';
 import './App.css';
 
 function App() {
@@ -11,6 +12,9 @@ function App() {
       {/* Brief Editor (new default) */}
       <Route path="/brief" element={<BriefList />} />
       <Route path="/brief/:briefId" element={<BriefEditor />} />
+
+      {/* AI Settings */}
+      <Route path="/settings" element={<AiSettings />} />
 
       {/* Wizard (original 8-step flow) */}
       <Route path="/wizard" element={<WizardPage />} />
