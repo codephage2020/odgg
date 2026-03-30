@@ -2,6 +2,11 @@
 
 All notable changes to ODGG will be documented in this file.
 
+## [0.1.3.1] - 2026-03-30
+
+### Changed
+- Design principle #1 in `.impeccable.md` now documents the Brief Editor exception: "document is king" instead of "canvas is king" when in the brief editing view
+
 ## [0.1.3.0] - 2026-03-30
 
 ### Added
