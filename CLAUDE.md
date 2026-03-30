@@ -74,17 +74,17 @@ Two-service architecture with a reverse proxy pattern:
 ### Backend Layers
 
 - `app.py` — FastAPI entry point, mounts routers
-- `api/v1/` — Route handlers: `sessions.py` (CRUD + step confirmation), `metadata.py` (schema discovery), `modeling.py` (AI suggestions + code generation), `briefs.py` (Brief Editor CRUD, SSE cascade drafting, code generation)
+- `api/v1/` — Route handlers: `sessions.py` (CRUD + step confirmation), `metadata.py` (schema discovery), `modeling.py` (AI suggestions + code generation), `briefs.py` (Brief Editor CRUD, SSE cascade drafting, code generation, Markdown export)
 - `services/` — Business logic:
   - `modeling_engine.py` — Kimball 4-step AI-guided modeling, builds metadata context for LLM prompts. Accepts `ModelSource` protocol for decoupled input (session or brief)
   - `brief_bridge.py` — `BriefModelSource` adapter: extracts dimensions/measures/grain from brief section markdown for code generation
   - `llm_router.py` — LiteLLM wrapper with two-schema retry strategy and SSE streaming. Handles code fence extraction and model-specific quirks (e.g. Kimi models skip temperature)
   - `metadata_discovery.py` — Async schema introspection via SQLAlchemy
-  - `codegen.py` — Jinja2-based code generation (DDL, ETL, dbt)
+  - `codegen.py` — Jinja2-based code generation (DDL, ETL, dbt, brief export)
   - `sanitizer.py` — Input sanitization and prompt injection detection
 - `models/` — Pydantic models: `dimensional.py` (star schema types), `metadata.py` (schema snapshot), `session.py` (session + step state), `brief.py` (brief + section ORM models)
 - `core/` — Config (`pydantic-settings`, env prefix `ODGG_`), database setup, logging
-- `templates/` — Jinja2 templates for DDL, ETL, dbt, data dictionary
+- `templates/` — Jinja2 templates for DDL, ETL, dbt, data dictionary, brief export
 
 ### Frontend Layers
 

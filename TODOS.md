@@ -5,14 +5,6 @@ Branch: main
 
 ## Deferred from Modeling Brief Editor v1
 
-### TODO-002: Markdown export with stakeholder-friendly formatting
-**What:** Polished Markdown export of the modeling brief for stakeholder review. Not raw section dump. Headers, tables, context for non-technical readers.
-**Why:** The whole point of the brief is capturing domain knowledge for stakeholder confirmation. Jinja2 template (same pattern as data_dictionary.md.j2).
-**Effort:** human: ~3hr / CC: ~15 min
-**Depends on:** ModelingBrief model exists
-**Added:** 2026-03-28
-
-
 ### TODO-004: Update .impeccable.md for brief editor paradigm
 **What:** Add note to .impeccable.md that brief editor view follows "document is king" (not "canvas is king"). The ERD canvas serves the document in this mode.
 **Why:** Without this, implementers may make the ERD the hero in the brief editor, conflicting with the approved sidebar + document layout.
@@ -25,6 +17,10 @@ Branch: main
 ### TODO-001: Large schema handling (500+ tables)
 **What:** Table selection UI (TableSelector component) with search, select all/none. Backend: server-side MAX_TABLES_FOR_LLM enforcement, selected_tables filtering in _build_metadata_context, input validation.
 **Completed:** v0.1.1.0 (2026-03-28)
+
+### TODO-002: Markdown export with stakeholder-friendly formatting
+**What:** GET /briefs/{id}/export endpoint, Jinja2 template (brief_export.md.j2), generate_brief_export() codegen function. Stakeholder-friendly Markdown with title, metadata, typed section headers, and footer.
+**Completed:** v0.1.3.0 (2026-03-30)
 
 ### TODO-003: Prompt quality eval suite for brief sections
 **What:** TPC-H ground truth scoring for all 4 Kimball steps. 9 structural + 5 live LLM tests with --run-llm flag. Scoring functions for BP, grain, dimensions, measures.

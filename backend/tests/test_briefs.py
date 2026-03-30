@@ -661,3 +661,109 @@ class TestBriefCodeGeneration:
         brief_id = resp.json()["id"]
         resp = await client.post(f"/api/v1/briefs/{brief_id}/generate")
         assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Markdown Export
+# ---------------------------------------------------------------------------
+
+
+class TestBriefExport:
+    @pytest.fixture
+    async def brief_with_sections(self, client: AsyncClient) -> str:
+        """Create a brief with several sections for export."""
+        resp = await client.post(
+            "/api/v1/briefs",
+            json={"title": "TPC-H Order Analysis", "database_name": "tpch"},
+        )
+        brief_id = resp.json()["id"]
+
+        await client.post(
+            f"/api/v1/briefs/{brief_id}/sections",
+            json={
+                "section_type": "business_process",
+                "content": "**Order Processing**\n\nTrack customer orders end-to-end.",
+            },
+        )
+        await client.post(
+            f"/api/v1/briefs/{brief_id}/sections",
+            json={
+                "section_type": "grain",
+                "content": "One row per order line item.",
+            },
+        )
+        await client.post(
+            f"/api/v1/briefs/{brief_id}/sections",
+            json={
+                "section_type": "dimension",
+                "content": "- **dim_customer** (customers): Customer dimension",
+            },
+        )
+        await client.post(
+            f"/api/v1/briefs/{brief_id}/sections",
+            json={
+                "section_type": "measure",
+                "content": "- **total_revenue** (SUM of total): Total order revenue",
+            },
+        )
+        return brief_id
+
+    async def test_export_returns_markdown(
+        self, client: AsyncClient, brief_with_sections: str
+    ):
+        resp = await client.get(f"/api/v1/briefs/{brief_with_sections}/export")
+        assert resp.status_code == 200
+        assert "text/markdown" in resp.headers["content-type"]
+
+    async def test_export_contains_title(
+        self, client: AsyncClient, brief_with_sections: str
+    ):
+        resp = await client.get(f"/api/v1/briefs/{brief_with_sections}/export")
+        md = resp.text
+        assert "# TPC-H Order Analysis" in md
+
+    async def test_export_contains_metadata(
+        self, client: AsyncClient, brief_with_sections: str
+    ):
+        resp = await client.get(f"/api/v1/briefs/{brief_with_sections}/export")
+        md = resp.text
+        assert "tpch" in md
+        assert "Draft" in md
+
+    async def test_export_contains_all_sections(
+        self, client: AsyncClient, brief_with_sections: str
+    ):
+        resp = await client.get(f"/api/v1/briefs/{brief_with_sections}/export")
+        md = resp.text
+        assert "## Business Process" in md
+        assert "## Grain (Level of Detail)" in md
+        assert "## Dimensions" in md
+        assert "## Measures" in md
+
+    async def test_export_contains_section_content(
+        self, client: AsyncClient, brief_with_sections: str
+    ):
+        resp = await client.get(f"/api/v1/briefs/{brief_with_sections}/export")
+        md = resp.text
+        assert "Order Processing" in md
+        assert "One row per order line item" in md
+        assert "dim_customer" in md
+        assert "total_revenue" in md
+
+    async def test_export_contains_footer(
+        self, client: AsyncClient, brief_with_sections: str
+    ):
+        resp = await client.get(f"/api/v1/briefs/{brief_with_sections}/export")
+        assert "ODGG" in resp.text
+
+    async def test_export_empty_brief(self, client: AsyncClient):
+        """Brief with no sections still exports with placeholder."""
+        resp = await client.post("/api/v1/briefs", json={"title": "Empty Brief"})
+        brief_id = resp.json()["id"]
+        resp = await client.get(f"/api/v1/briefs/{brief_id}/export")
+        assert resp.status_code == 200
+        assert "no sections yet" in resp.text
+
+    async def test_export_not_found(self, client: AsyncClient):
+        resp = await client.get("/api/v1/briefs/nonexistent/export")
+        assert resp.status_code == 404
