@@ -1,4 +1,4 @@
-// Single section card — edit content, regenerate, view draft history
+// Single section card — edit content, regenerate with instructions, view draft history
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useBriefStore } from '../../store/briefStore';
 import { SECTION_LABELS, SECTION_ICONS } from '../../types/brief';
@@ -14,8 +14,11 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState(section.content);
   const [showDrafts, setShowDrafts] = useState(false);
+  const [showRedraftInput, setShowRedraftInput] = useState(false);
+  const [redraftInstructions, setRedraftInstructions] = useState('');
   const [regenerating, setRegenerating] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const redraftRef = useRef<HTMLInputElement>(null);
 
   // Sync content when section updates from SSE
   useEffect(() => {
@@ -39,8 +42,17 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
     setEditing(false);
   }, [content, section.content, section.id, briefId, updateSection]);
 
+  // Focus the redraft input when it appears
+  useEffect(() => {
+    if (showRedraftInput && redraftRef.current) {
+      redraftRef.current.focus();
+    }
+  }, [showRedraftInput]);
+
   const handleRegenerate = useCallback(async () => {
     setRegenerating(true);
+    setShowRedraftInput(false);
+    setRedraftInstructions('');
     try {
       await regenerateSection(briefId, section.id);
     } finally {
@@ -89,9 +101,9 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
           )}
           <button
             className="brief-action-btn"
-            onClick={handleRegenerate}
+            onClick={() => setShowRedraftInput(!showRedraftInput)}
             disabled={regenerating}
-            title="重新生成"
+            title="重新生成（可附加指令）"
           >
             {regenerating ? '⏳' : '🔄'}
           </button>
@@ -116,6 +128,35 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Redraft input */}
+      {showRedraftInput && !regenerating && (
+        <div className="brief-redraft-bar">
+          <input
+            ref={redraftRef}
+            className="brief-redraft-input"
+            placeholder="输入修改指令（可选），例如：更详细地描述维度属性..."
+            value={redraftInstructions}
+            onChange={(e) => setRedraftInstructions(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRegenerate();
+              if (e.key === 'Escape') {
+                setShowRedraftInput(false);
+                setRedraftInstructions('');
+              }
+            }}
+          />
+          <button className="brief-redraft-go" onClick={handleRegenerate}>
+            重新生成
+          </button>
+          <button
+            className="brief-redraft-cancel"
+            onClick={() => { setShowRedraftInput(false); setRedraftInstructions(''); }}
+          >
+            取消
+          </button>
         </div>
       )}
 

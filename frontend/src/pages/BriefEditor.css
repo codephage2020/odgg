@@ -420,6 +420,57 @@
   background: var(--bg-hover, #f5f5f5);
 }
 
+/* Redraft bar */
+.brief-redraft-bar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+  align-items: center;
+}
+
+.brief-redraft-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--accent-primary, #4a90d9);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--bg-surface, #fff);
+  color: var(--text-primary, #1a1a1a);
+  outline: none;
+}
+.brief-redraft-input::placeholder {
+  color: var(--text-tertiary, #999);
+}
+
+.brief-redraft-go {
+  padding: 6px 12px;
+  background: var(--accent-primary, #4a90d9);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.brief-redraft-go:hover {
+  opacity: 0.9;
+}
+
+.brief-redraft-cancel {
+  padding: 6px 10px;
+  background: none;
+  border: 1px solid var(--border-subtle, #ddd);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-secondary, #6b6b6b);
+  white-space: nowrap;
+}
+.brief-redraft-cancel:hover {
+  background: var(--bg-hover, #f0f0f0);
+}
+
 /* Shimmer */
 .brief-shimmer {
   margin-bottom: 24px;
@@ -745,8 +796,41 @@
   border-top: 2px solid var(--border-subtle, #e5e5e5);
 }
 
+.brief-code-global-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
 .brief-code-block {
   margin-top: 16px;
+}
+
+.brief-code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.brief-code-block-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.brief-code-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-subtle, #ddd);
+  border-radius: 4px;
+  background: var(--bg-surface, #fff);
+  color: var(--text-secondary, #6b6b6b);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.brief-code-btn:hover {
+  background: var(--bg-hover, #f0f0f0);
 }
 
 .brief-code-label {
@@ -754,7 +838,6 @@
   font-weight: 600;
   text-transform: uppercase;
   color: var(--text-secondary, #6b6b6b);
-  margin-bottom: 6px;
   letter-spacing: 0.05em;
 }
 
@@ -768,4 +851,6 @@
   overflow-x: auto;
   white-space: pre;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  max-height: 400px;
+  overflow-y: auto;
 }
