@@ -4,6 +4,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from odgg.app import app
+from odgg.core.database import Base, engine
 
 
 def pytest_addoption(parser):
@@ -22,6 +23,13 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "llm" in item.keywords:
             item.add_marker(skip_llm)
+
+
+@pytest.fixture(autouse=True, scope="session")
+async def _create_tables():
+    """Ensure all ORM tables exist before tests run (lifespan doesn't fire in ASGITransport)."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 @pytest.fixture
