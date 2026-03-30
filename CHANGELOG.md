@@ -2,6 +2,22 @@
 
 All notable changes to ODGG will be documented in this file.
 
+## [0.1.4.0] - 2026-03-30
+
+### Added
+- AI Settings page (`/settings`) lets you configure LLM provider, model, API key, base URL, and timeout from the browser
+- 6 provider presets: OpenAI GPT-4o, GPT-4o-mini, Anthropic Claude Sonnet, DeepSeek V3, Ollama (local), Kimi K2.5
+- Test Connection button validates your config against the live API before saving
+- Settings persist to SQLite and survive server restarts, with env var fallback
+- Runtime config override layer: changes take effect immediately without restarting the backend
+- 5 new API endpoints: `GET/PUT/DELETE /config/ai`, `POST /config/ai/test`, `GET /config/ai/presets`
+- 16 backend tests covering config resolution, API endpoints, key masking, and connection testing
+- "⚙ AI 设置" navigation link in the Brief list header
+
+### Changed
+- `llm_router.py` now reads from `get_llm_config()` instead of static `settings` singleton, enabling hot-swap of LLM providers
+- Existing `test_llm_router.py` tests updated to use config dict injection instead of monkeypatching `settings`
+
 ## [0.1.3.0] - 2026-03-30
 
 ### Added
