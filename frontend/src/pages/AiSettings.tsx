@@ -57,6 +57,16 @@ export function AiSettings() {
 
   const markDirty = useCallback(() => setDirty(true), []);
 
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
+
   const handlePreset = useCallback(
     (preset: AiPreset) => {
       setProvider(preset.provider);

@@ -397,13 +397,20 @@ async def generate_from_brief(
     brief = await _get_brief_or_404(brief_id, db)
     source = BriefModelSource(brief)
 
-    # Validate we have enough data
-    if not source.get_business_process():
+    # Validate required sections exist and have content
+    bp = source.get_business_process()
+    if not bp:
         raise HTTPException(
             status_code=400,
             detail="Brief has no business process section — draft sections first",
         )
-    if not source.get_measures():
+    if not bp.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Business process section is empty — fill in content first",
+        )
+    measures = source.get_measures()
+    if not measures:
         raise HTTPException(
             status_code=400,
             detail="Brief has no measure sections — add measures first",

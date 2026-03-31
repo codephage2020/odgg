@@ -87,7 +87,13 @@ export function BriefEditor() {
   }, [showStatusMenu]);
 
   const handleTitleSave = useCallback(async () => {
-    if (currentBrief && titleDraft.trim() && titleDraft !== currentBrief.title) {
+    if (!titleDraft.trim()) {
+      // Restore original title if empty
+      if (currentBrief) setTitleDraft(currentBrief.title);
+      setEditingTitle(false);
+      return;
+    }
+    if (currentBrief && titleDraft.trim() !== currentBrief.title) {
       await updateBrief(currentBrief.id, { title: titleDraft.trim() });
     }
     setEditingTitle(false);
@@ -128,6 +134,10 @@ export function BriefEditor() {
     try {
       const code = await generateCode(currentBrief.id);
       setGeneratedCode(code);
+      // Scroll to code output after generation
+      setTimeout(() => {
+        document.querySelector('.brief-code-output')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch {
       // Error displayed via store
     }
@@ -397,7 +407,12 @@ export function BriefEditor() {
             <div className="brief-code-output">
               <div className="brief-section-header">
                 <span className="brief-section-icon">⚡</span>
-                <h3 className="brief-section-title">生成的代码</h3>
+                <h3 className="brief-section-title">
+                  生成的代码
+                  <span className="brief-code-count">
+                    {Object.keys(generatedCode).length} 个文件
+                  </span>
+                </h3>
                 <div className="brief-code-global-actions">
                   <button
                     className="brief-action-btn"
@@ -421,10 +436,17 @@ export function BriefEditor() {
               </div>
               {Object.entries(generatedCode).map(([key, value]) => {
                 const code = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+                const CODE_LABELS: Record<string, string> = {
+                  ddl: 'DDL — 建表语句',
+                  etl: 'ETL — 数据加载',
+                  data_dictionary: '数据字典',
+                };
+                const label = CODE_LABELS[key] || key;
+                const lang = key === 'data_dictionary' ? 'yaml' : key.endsWith('.yml') || key.endsWith('.yaml') ? 'yaml' : 'sql';
                 return (
                   <div key={key} className="brief-code-block">
                     <div className="brief-code-block-header">
-                      <div className="brief-code-label">{key.toUpperCase()}</div>
+                      <div className="brief-code-label">{label}</div>
                       <div className="brief-code-block-actions">
                         <button
                           className="brief-code-btn"
@@ -442,7 +464,7 @@ export function BriefEditor() {
                         </button>
                       </div>
                     </div>
-                    <CodeBlock code={code} language={key.includes('schema') ? 'yaml' : 'sql'} />
+                    <CodeBlock code={code} language={lang} />
                   </div>
                 );
               })}
@@ -455,7 +477,7 @@ export function BriefEditor() {
       {confirmRedraftAll && (
         <div className="brief-dialog-overlay" onClick={() => setConfirmRedraftAll(false)}>
           <div className="brief-delete-dialog" onClick={(e) => e.stopPropagation()}>
-            <p>重新起草将覆盖所有现有章节内容，此操作不可撤销。确定继续？</p>
+            <p>重新起草将覆盖现有 {sections.length} 个章节内容，此操作不可撤销。确定继续？</p>
             <div className="brief-delete-actions">
               <button
                 className="brief-delete-confirm"
