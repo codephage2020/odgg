@@ -23,6 +23,13 @@ export function BriefList() {
     listBriefs();
   }, [listBriefs]);
 
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(clearError, 5000);
+    return () => clearTimeout(timer);
+  }, [error, clearError]);
+
   const handleCreate = async () => {
     setCreating(true);
     try {

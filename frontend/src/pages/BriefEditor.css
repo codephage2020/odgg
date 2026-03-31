@@ -219,11 +219,61 @@
   color: var(--accent);
 }
 
+/* Add section button + menu */
+.brief-sidebar-add-wrapper {
+  position: relative;
+  margin: 4px 16px 0;
+}
+.brief-sidebar-add-btn {
+  width: 100%;
+  padding: 6px 12px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.brief-sidebar-add-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.brief-sidebar-add-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 4px);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  padding: 4px;
+  z-index: 10;
+}
+.brief-sidebar-add-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+.brief-sidebar-add-option:hover {
+  background: var(--bg-inset);
+}
+
 .brief-sidebar-draft-btn {
   margin: 12px 16px;
   padding: 8px 12px;
   background: var(--accent);
-  color: white;
+  color: var(--text-inverse);
   border: none;
   border-radius: 6px;
   font-size: 13px;
@@ -294,7 +344,7 @@
 .brief-draft-btn {
   padding: 10px 20px;
   background: var(--accent);
-  color: white;
+  color: var(--text-inverse);
   border: none;
   border-radius: 8px;
   font-size: 14px;
@@ -490,7 +540,7 @@
 
 /* Danger action button */
 .brief-action-danger:hover {
-  color: #dc2626;
+  color: var(--error);
 }
 
 /* Confirm bar (inline delete confirmation) */
@@ -500,13 +550,13 @@
   gap: 8px;
   padding: 8px 0;
   font-size: 13px;
-  color: #dc2626;
+  color: var(--error);
 }
 
 .brief-confirm-yes {
   padding: 4px 12px;
-  background: #dc2626;
-  color: white;
+  background: var(--error);
+  color: var(--text-inverse);
   border: none;
   border-radius: 4px;
   font-size: 12px;
@@ -514,7 +564,7 @@
   font-weight: 500;
 }
 .brief-confirm-yes:hover {
-  background: #b91c1c;
+  opacity: 0.85;
 }
 
 .brief-confirm-no {
@@ -555,7 +605,7 @@
 .brief-redraft-go {
   padding: 6px 12px;
   background: var(--accent);
-  color: white;
+  color: var(--text-inverse);
   border: none;
   border-radius: 6px;
   font-size: 12px;
@@ -653,7 +703,7 @@
 }
 .brief-header-btn.primary {
   background: var(--accent);
-  color: white;
+  color: var(--text-inverse);
   border-color: transparent;
 }
 .brief-header-btn.primary:hover {
@@ -747,6 +797,44 @@
   padding: 20px;
 }
 
+.brief-connect-db-type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-inset);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+.brief-connect-db-icon {
+  font-size: 16px;
+}
+.brief-connect-db-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  margin-left: auto;
+}
+
+.brief-connect-quickfill {
+  margin-top: 12px;
+  padding: 6px 12px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.brief-connect-quickfill:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
 .brief-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -779,8 +867,8 @@
 .brief-connect-error {
   margin-top: 12px;
   padding: 8px 12px;
-  background: rgba(239, 68, 68, 0.08);
-  color: #dc2626;
+  background: var(--error-light);
+  color: var(--error);
   border-radius: 6px;
   font-size: 13px;
 }
@@ -827,7 +915,7 @@
 .table-selector-warn {
   margin-left: auto;
   font-size: 12px;
-  color: #d97706;
+  color: var(--warning);
 }
 
 .table-selector-body {

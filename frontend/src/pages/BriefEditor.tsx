@@ -38,6 +38,7 @@ export function BriefEditor() {
     error,
     fetchBrief,
     updateBrief,
+    createSection,
     draftSections,
     generateCode,
     exportBrief,
@@ -59,16 +60,30 @@ export function BriefEditor() {
     }
   }, [briefId, fetchBrief]);
 
-  // Close status menu on click outside
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(clearError, 5000);
+    return () => clearTimeout(timer);
+  }, [error, clearError]);
+
+  // Close status menu on click outside or Escape
   useEffect(() => {
     if (!showStatusMenu) return;
-    const handler = (e: MouseEvent) => {
+    const handleClick = (e: MouseEvent) => {
       if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
         setShowStatusMenu(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowStatusMenu(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, [showStatusMenu]);
 
   const handleTitleSave = useCallback(async () => {
@@ -77,6 +92,14 @@ export function BriefEditor() {
     }
     setEditingTitle(false);
   }, [currentBrief, titleDraft, updateBrief]);
+
+  const handleAddSection = useCallback(async (type: SectionType) => {
+    if (!currentBrief) return;
+    await createSection(currentBrief.id, {
+      section_type: type,
+      content: '',
+    });
+  }, [currentBrief, createSection]);
 
   const handleDraft = useCallback(async () => {
     if (!currentBrief) return;
@@ -292,6 +315,7 @@ export function BriefEditor() {
           sections={sections}
           draftingSections={draftingSections}
           onDraft={hasMetadata && !hasSections ? handleDraft : undefined}
+          onAddSection={hasMetadata ? handleAddSection : undefined}
         />
 
         {/* Document */}

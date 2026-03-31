@@ -260,7 +260,7 @@
 
 .ai-action-btn.save {
   background: var(--accent);
-  color: white;
+  color: var(--text-inverse);
   border-color: var(--accent);
 }
 .ai-action-btn.save:hover {
