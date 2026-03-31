@@ -273,7 +273,7 @@
   margin: 12px 16px;
   padding: 8px 12px;
   background: var(--accent);
-  color: white;
+  color: var(--text-inverse);
   border: none;
   border-radius: 6px;
   font-size: 13px;
@@ -344,7 +344,7 @@
 .brief-draft-btn {
   padding: 10px 20px;
   background: var(--accent);
-  color: white;
+  color: var(--text-inverse);
   border: none;
   border-radius: 8px;
   font-size: 14px;
@@ -540,7 +540,7 @@
 
 /* Danger action button */
 .brief-action-danger:hover {
-  color: #dc2626;
+  color: var(--error);
 }
 
 /* Confirm bar (inline delete confirmation) */
@@ -550,13 +550,13 @@
   gap: 8px;
   padding: 8px 0;
   font-size: 13px;
-  color: #dc2626;
+  color: var(--error);
 }
 
 .brief-confirm-yes {
   padding: 4px 12px;
-  background: #dc2626;
-  color: white;
+  background: var(--error);
+  color: var(--text-inverse);
   border: none;
   border-radius: 4px;
   font-size: 12px;
@@ -564,7 +564,7 @@
   font-weight: 500;
 }
 .brief-confirm-yes:hover {
-  background: #b91c1c;
+  opacity: 0.85;
 }
 
 .brief-confirm-no {
@@ -605,7 +605,7 @@
 .brief-redraft-go {
   padding: 6px 12px;
   background: var(--accent);
-  color: white;
+  color: var(--text-inverse);
   border: none;
   border-radius: 6px;
   font-size: 12px;
@@ -703,7 +703,7 @@
 }
 .brief-header-btn.primary {
   background: var(--accent);
-  color: white;
+  color: var(--text-inverse);
   border-color: transparent;
 }
 .brief-header-btn.primary:hover {
@@ -915,7 +915,7 @@
 .table-selector-warn {
   margin-left: auto;
   font-size: 12px;
-  color: #d97706;
+  color: var(--warning);
 }
 
 .table-selector-body {
