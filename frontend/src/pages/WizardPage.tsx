@@ -27,6 +27,13 @@ export function WizardPage() {
     createSession();
   }, [createSession]);
 
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(clearError, 5000);
+    return () => clearTimeout(timer);
+  }, [error, clearError]);
+
   const handleConnect = useCallback(
     async (url: string, schema: string) => {
       try {

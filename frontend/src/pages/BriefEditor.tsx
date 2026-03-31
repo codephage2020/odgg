@@ -67,16 +67,23 @@ export function BriefEditor() {
     return () => clearTimeout(timer);
   }, [error, clearError]);
 
-  // Close status menu on click outside
+  // Close status menu on click outside or Escape
   useEffect(() => {
     if (!showStatusMenu) return;
-    const handler = (e: MouseEvent) => {
+    const handleClick = (e: MouseEvent) => {
       if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
         setShowStatusMenu(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowStatusMenu(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, [showStatusMenu]);
 
   const handleTitleSave = useCallback(async () => {

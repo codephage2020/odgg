@@ -119,6 +119,7 @@ export function BriefConnectDialog({ briefId, onConnected, onClose }: BriefConne
               onClick={handleConnect}
               disabled={loading || !database || !username}
             >
+              {loading && <span className="spinner-sm" />}
               {loading ? '连接中...' : '连接并发现元数据'}
             </button>
             <p className="brief-hint">连接信息仅用于元数据发现，不会持久化存储</p>

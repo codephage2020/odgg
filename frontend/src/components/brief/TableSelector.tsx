@@ -41,8 +41,25 @@ export default function TableSelector({
     onSelectionChange([...next]);
   };
 
-  const selectAll = () => onSelectionChange(tables.map((t) => t.name));
-  const selectNone = () => onSelectionChange([]);
+  const selectAll = () => {
+    // When filtering, select filtered + keep existing; otherwise select all
+    if (search) {
+      const next = new Set(selected);
+      filtered.forEach((t) => next.add(t.name));
+      onSelectionChange([...next]);
+    } else {
+      onSelectionChange(tables.map((t) => t.name));
+    }
+  };
+  const selectNone = () => {
+    if (search) {
+      const next = new Set(selected);
+      filtered.forEach((t) => next.delete(t.name));
+      onSelectionChange([...next]);
+    } else {
+      onSelectionChange([]);
+    }
+  };
 
   if (tables.length <= MAX_AUTO_SELECT && !selectedTables) {
     // Small schema, no need for selection UI
@@ -51,7 +68,13 @@ export default function TableSelector({
 
   return (
     <div className="table-selector">
-      <div className="table-selector-header" onClick={() => setExpanded(!expanded)}>
+      <div
+        className="table-selector-header"
+        onClick={() => setExpanded(!expanded)}
+        role="button"
+        aria-expanded={expanded}
+        aria-label={`表选择器，${selected.size} / ${tables.length} 张表已选`}
+      >
         <span className="table-selector-icon">{expanded ? '▾' : '▸'}</span>
         <span className="table-selector-label">
           📋 {selected.size} / {tables.length} 张表已选
@@ -72,9 +95,14 @@ export default function TableSelector({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="table-selector-search"
+              aria-label="搜索表名"
             />
-            <button onClick={selectAll} className="table-selector-btn">全选</button>
-            <button onClick={selectNone} className="table-selector-btn">全不选</button>
+            <button onClick={selectAll} className="table-selector-btn" aria-label="全选表">
+              {search ? '选中匹配' : '全选'}
+            </button>
+            <button onClick={selectNone} className="table-selector-btn" aria-label="取消全选">
+              {search ? '取消匹配' : '全不选'}
+            </button>
           </div>
           <div className="table-selector-list">
             {filtered.map((t) => (
