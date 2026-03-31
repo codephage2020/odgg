@@ -6,7 +6,7 @@ interface BriefShimmerProps {
 
 export function BriefShimmer({ label, active }: BriefShimmerProps) {
   return (
-    <div className={`brief-shimmer ${active ? 'active' : ''}`}>
+    <div className={`brief-shimmer ${active ? 'active' : ''}`} role="status" aria-live="polite" aria-busy={active}>
       <div className="brief-shimmer-header">
         <span>{label}</span>
         {active && <span className="brief-shimmer-status">AI 起草中...</span>}

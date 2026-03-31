@@ -4,10 +4,12 @@ import { WizardPage } from './pages/WizardPage';
 import { BriefList } from './pages/BriefList';
 import { BriefEditor } from './pages/BriefEditor';
 import { AiSettings } from './pages/AiSettings';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
 function App() {
   return (
+    <ErrorBoundary>
     <Routes>
       {/* Brief Editor (new default) */}
       <Route path="/brief" element={<BriefList />} />
@@ -22,6 +24,7 @@ function App() {
       {/* Default: redirect to brief list */}
       <Route path="*" element={<Navigate to="/brief" replace />} />
     </Routes>
+    </ErrorBoundary>
   );
 }
 

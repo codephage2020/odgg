@@ -55,40 +55,47 @@ export function DatasourceManager({ onConnect, loading }: Props) {
             placeholder="连接名称"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
+            aria-label="连接名称"
           />
           <div className="ds-form-row">
             <input
               placeholder="主机"
               value={form.host}
               onChange={(e) => setForm({ ...form, host: e.target.value })}
+              aria-label="主机"
             />
             <input
               placeholder="端口"
               value={form.port}
               onChange={(e) => setForm({ ...form, port: e.target.value })}
               style={{ width: 70 }}
+              aria-label="端口"
             />
           </div>
           <input
             placeholder="数据库"
             value={form.database}
             onChange={(e) => setForm({ ...form, database: e.target.value })}
+            aria-label="数据库"
           />
           <input
             placeholder="用户名"
             value={form.username}
             onChange={(e) => setForm({ ...form, username: e.target.value })}
+            aria-label="用户名"
           />
           <input
             type="password"
             placeholder="密码（不保存）"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            aria-label="密码"
           />
           <input
             placeholder="Schema"
             value={form.schema}
             onChange={(e) => setForm({ ...form, schema: e.target.value })}
+            aria-label="Schema"
           />
           <button
             className="btn btn-primary btn-sm ds-connect-btn"
@@ -122,9 +129,10 @@ export function DatasourceManager({ onConnect, loading }: Props) {
                     type="password"
                     placeholder="密码"
                     className="ds-pw-input"
-                    value={ds.id === activeId ? '' : password}
+                    value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleConnect(ds)}
+                    aria-label={`${ds.name} 密码`}
                   />
                   <button
                     className="btn btn-sm"
@@ -142,6 +150,7 @@ export function DatasourceManager({ onConnect, loading }: Props) {
                 className="btn btn-sm ds-delete"
                 onClick={() => removeDatasource(ds.id)}
                 title="删除"
+                aria-label={`删除 ${ds.name}`}
               >
                 ×
               </button>

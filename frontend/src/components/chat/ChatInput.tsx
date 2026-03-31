@@ -36,11 +36,13 @@ export function ChatInput({ onSend, disabled }: Props) {
         placeholder="输入修改指令，如: 添加一个时间维度..."
         disabled={disabled}
         rows={1}
+        aria-label="输入建模指令"
       />
       <button
         className="btn btn-primary btn-sm chat-send"
         onClick={handleSend}
         disabled={disabled || !text.trim()}
+        aria-label="发送消息"
       >
         发送
       </button>
