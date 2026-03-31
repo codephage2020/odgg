@@ -62,10 +62,13 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
     }
   }, [briefId, section.id, redraftInstructions, regenerateSection]);
 
+  const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
+
   const handleRestoreDraft = useCallback(
     async (draft: string) => {
       await updateSection(briefId, section.id, { content: draft });
       setShowDrafts(false);
+      setRestoreTarget(null);
     },
     [briefId, section.id, updateSection]
   );
@@ -139,19 +142,27 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
       {/* Draft history popover */}
       {showDrafts && (
         <div className="brief-draft-history">
-          <div className="brief-draft-history-title">草稿历史</div>
+          <div className="brief-draft-history-title">草稿历史 ({section.ai_drafts.length} 个版本)</div>
           {section.ai_drafts.map((draft, i) => (
             <div key={i} className="brief-draft-item">
               <div className="brief-draft-preview">
+                <span className="brief-draft-index">#{i + 1}</span>
                 {draft.substring(0, 100)}
                 {draft.length > 100 ? '...' : ''}
               </div>
-              <button
-                className="brief-draft-restore"
-                onClick={() => handleRestoreDraft(draft)}
-              >
-                恢复
-              </button>
+              {restoreTarget === draft ? (
+                <div className="brief-draft-confirm">
+                  <button className="brief-draft-confirm-yes" onClick={() => handleRestoreDraft(draft)}>确认</button>
+                  <button className="brief-draft-confirm-no" onClick={() => setRestoreTarget(null)}>取消</button>
+                </div>
+              ) : (
+                <button
+                  className="brief-draft-restore"
+                  onClick={() => setRestoreTarget(draft)}
+                >
+                  恢复
+                </button>
+              )}
             </div>
           ))}
         </div>

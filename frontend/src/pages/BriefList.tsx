@@ -1,5 +1,5 @@
 // ODGG — Brief list / home page
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBriefStore } from '../store/briefStore';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -12,12 +12,45 @@ const STATUS_LABELS: Record<string, string> = {
   exported: '📤 已导出',
 };
 
+type SortKey = 'updated' | 'title' | 'status';
+
 export function BriefList() {
   const navigate = useNavigate();
   const { briefs, loading, error, listBriefs, createBrief, deleteBrief, clearError } =
     useBriefStore();
   const [creating, setCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<SortKey>('updated');
+
+  const filtered = useMemo(() => {
+    let list = briefs;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((b) =>
+        b.title.toLowerCase().includes(q) ||
+        (b.database_name && b.database_name.toLowerCase().includes(q))
+      );
+    }
+    if (statusFilter !== 'all') {
+      list = list.filter((b) => b.status === statusFilter);
+    }
+    const sorted = [...list];
+    switch (sortBy) {
+      case 'title':
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'status':
+        sorted.sort((a, b) => a.status.localeCompare(b.status));
+        break;
+      case 'updated':
+      default:
+        sorted.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+        break;
+    }
+    return sorted;
+  }, [briefs, search, statusFilter, sortBy]);
 
   useEffect(() => {
     listBriefs();
@@ -69,6 +102,41 @@ export function BriefList() {
           </button>
         </div>
 
+        {briefs.length > 0 && (
+          <div className="brief-list-filters">
+            <input
+              type="text"
+              placeholder="搜索标题或数据库..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="brief-search-input"
+              aria-label="搜索 Briefs"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="brief-filter-select"
+              aria-label="按状态筛选"
+            >
+              <option value="all">全部状态</option>
+              <option value="draft">草稿</option>
+              <option value="review">评审中</option>
+              <option value="approved">已批准</option>
+              <option value="exported">已导出</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortKey)}
+              className="brief-filter-select"
+              aria-label="排序"
+            >
+              <option value="updated">最近更新</option>
+              <option value="title">按标题</option>
+              <option value="status">按状态</option>
+            </select>
+          </div>
+        )}
+
         {error && (
           <div className="wb-error brief-list-error">
             <span>{error}</span>
@@ -89,8 +157,14 @@ export function BriefList() {
           </div>
         )}
 
+        {briefs.length > 0 && filtered.length === 0 && (
+          <div className="brief-list-empty">
+            <p>没有匹配的 Briefs。</p>
+          </div>
+        )}
+
         <div className="brief-list-grid">
-          {briefs.map((brief) => (
+          {filtered.map((brief) => (
             <div
               key={brief.id}
               className="brief-list-card"

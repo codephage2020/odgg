@@ -116,11 +116,20 @@ export function BriefEditor() {
 
   const handleGenerate = useCallback(async () => {
     if (!currentBrief) return;
+    // Validate required sections before calling API
+    const types = new Set(currentBrief.sections.map((s) => s.section_type));
+    const missing: string[] = [];
+    if (!types.has('business_process')) missing.push('业务过程');
+    if (!types.has('measure')) missing.push('度量');
+    if (missing.length > 0) {
+      useBriefStore.setState({ error: `需要以下章节才能生成代码：${missing.join('、')}` });
+      return;
+    }
     try {
       const code = await generateCode(currentBrief.id);
       setGeneratedCode(code);
     } catch {
-      // Error handled in store
+      // Error displayed via store
     }
   }, [currentBrief, generateCode]);
 

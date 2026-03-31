@@ -538,6 +538,37 @@
   cursor: pointer;
   color: var(--accent);
 }
+.brief-draft-index {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin-right: 6px;
+  min-width: 20px;
+}
+.brief-draft-confirm {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.brief-draft-confirm-yes {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 4px;
+  background: var(--error);
+  color: var(--text-inverse);
+  cursor: pointer;
+}
+.brief-draft-confirm-no {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
 .brief-draft-restore:hover {
   background: var(--bg-inset);
 }

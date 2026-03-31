@@ -222,6 +222,16 @@ async def create_section(
     """Add a section to a brief."""
     brief = await _get_brief_or_404(brief_id, db)
 
+    # Prevent duplicate section types (except dimension/measure which can have multiple)
+    multi_allowed = {"dimension", "measure"}
+    if body.section_type.value not in multi_allowed:
+        existing = [s for s in brief.sections if s.section_type == body.section_type.value]
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail=f"此 Brief 已有 {body.section_type.value} 章节",
+            )
+
     # Auto-position: append after last section
     max_pos = max((s.position for s in brief.sections), default=-1)
 
