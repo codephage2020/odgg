@@ -10,13 +10,14 @@ interface BriefSectionCardProps {
 }
 
 export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
-  const { updateSection, regenerateSection } = useBriefStore();
+  const { updateSection, regenerateSection, deleteSection } = useBriefStore();
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState(section.content);
   const [showDrafts, setShowDrafts] = useState(false);
   const [showRedraftInput, setShowRedraftInput] = useState(false);
   const [redraftInstructions, setRedraftInstructions] = useState('');
   const [regenerating, setRegenerating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const redraftRef = useRef<HTMLInputElement>(null);
 
@@ -50,15 +51,16 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
   }, [showRedraftInput]);
 
   const handleRegenerate = useCallback(async () => {
+    const instructions = redraftInstructions.trim() || undefined;
     setRegenerating(true);
     setShowRedraftInput(false);
     setRedraftInstructions('');
     try {
-      await regenerateSection(briefId, section.id);
+      await regenerateSection(briefId, section.id, instructions);
     } finally {
       setRegenerating(false);
     }
-  }, [briefId, section.id, regenerateSection]);
+  }, [briefId, section.id, redraftInstructions, regenerateSection]);
 
   const handleRestoreDraft = useCallback(
     async (draft: string) => {
@@ -67,6 +69,11 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
     },
     [briefId, section.id, updateSection]
   );
+
+  const handleDelete = useCallback(async () => {
+    await deleteSection(briefId, section.id);
+    setConfirmDelete(false);
+  }, [briefId, section.id, deleteSection]);
 
   const label =
     section.name || SECTION_LABELS[section.section_type as SectionType] || section.section_type;
@@ -107,8 +114,24 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
           >
             {regenerating ? '⏳' : '🔄'}
           </button>
+          <button
+            className="brief-action-btn brief-action-danger"
+            onClick={() => setConfirmDelete(true)}
+            title="删除章节"
+          >
+            🗑
+          </button>
         </div>
       </div>
+
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <div className="brief-confirm-bar">
+          <span>确定删除「{label}」？此操作不可撤销。</span>
+          <button className="brief-confirm-yes" onClick={handleDelete}>删除</button>
+          <button className="brief-confirm-no" onClick={() => setConfirmDelete(false)}>取消</button>
+        </div>
+      )}
 
       {/* Draft history popover */}
       {showDrafts && (

@@ -1,5 +1,5 @@
 // ODGG — Modeling Brief Editor (document-centric mode)
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBriefStore } from '../store/briefStore';
 import { BriefSidebar } from '../components/brief/BriefSidebar';
@@ -48,12 +48,26 @@ export function BriefEditor() {
   const [showConnect, setShowConnect] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<Record<string, string> | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const statusRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (briefId) {
       fetchBrief(briefId);
     }
   }, [briefId, fetchBrief]);
+
+  // Close status menu on click outside
+  useEffect(() => {
+    if (!showStatusMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
+        setShowStatusMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showStatusMenu]);
 
   const handleTitleSave = useCallback(async () => {
     if (currentBrief && titleDraft.trim() && titleDraft !== currentBrief.title) {
@@ -84,6 +98,13 @@ export function BriefEditor() {
       // Error handled in store
     }
   }, [currentBrief, generateCode]);
+
+  const handleStatusChange = useCallback(async (status: string) => {
+    if (currentBrief) {
+      await updateBrief(currentBrief.id, { status });
+    }
+    setShowStatusMenu(false);
+  }, [currentBrief, updateBrief]);
 
   const handleExport = useCallback(async () => {
     if (!currentBrief) return;
@@ -174,7 +195,33 @@ export function BriefEditor() {
               {currentBrief.title}
             </h1>
           )}
-          <span className="brief-status-badge">{currentBrief.status}</span>
+          <div className="brief-status-wrapper" ref={statusRef}>
+            <button
+              className={`brief-status-badge clickable status-${currentBrief.status}`}
+              onClick={() => setShowStatusMenu(!showStatusMenu)}
+            >
+              {currentBrief.status === 'draft' && '📝 草稿'}
+              {currentBrief.status === 'review' && '👀 评审中'}
+              {currentBrief.status === 'approved' && '✅ 已批准'}
+              {currentBrief.status === 'exported' && '📤 已导出'}
+            </button>
+            {showStatusMenu && (
+              <div className="brief-status-menu">
+                {(['draft', 'review', 'approved', 'exported'] as const).map((s) => (
+                  <button
+                    key={s}
+                    className={`brief-status-option ${s === currentBrief.status ? 'active' : ''}`}
+                    onClick={() => handleStatusChange(s)}
+                  >
+                    {s === 'draft' && '📝 草稿'}
+                    {s === 'review' && '👀 评审中'}
+                    {s === 'approved' && '✅ 已批准'}
+                    {s === 'exported' && '📤 已导出'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {hasMetadata && (
             <span className="brief-db-badge">
               🗄 {currentBrief.database_name || 'Connected'}

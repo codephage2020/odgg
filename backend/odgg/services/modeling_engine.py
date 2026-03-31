@@ -89,9 +89,15 @@ def _build_metadata_context(
 async def suggest_business_process(
     snapshot: MetadataSnapshot,
     selected_tables: list[str] | None = None,
+    *,
+    instructions: str | None = None,
 ) -> dict[str, Any]:
     """Step 3: Suggest business processes based on metadata."""
     context = _build_metadata_context(snapshot, selected_tables)
+
+    user_content = f"Analyze this database and suggest business processes:\n\n{context}"
+    if instructions:
+        user_content += f"\n\nAdditional instructions: {sanitize_for_prompt(instructions)}"
 
     messages = [
         {
@@ -105,10 +111,7 @@ async def suggest_business_process(
                 '"involved_tables": [str], "confidence": float}]}'
             ),
         },
-        {
-            "role": "user",
-            "content": f"Analyze this database and suggest business processes:\n\n{context}",
-        },
+        {"role": "user", "content": user_content},
     ]
 
     result = await chat_completion(messages)
@@ -119,9 +122,18 @@ async def suggest_grain(
     business_process: str,
     snapshot: MetadataSnapshot,
     selected_tables: list[str] | None = None,
+    *,
+    instructions: str | None = None,
 ) -> dict[str, Any]:
     """Step 4: Suggest grain for the selected business process."""
     context = _build_metadata_context(snapshot, selected_tables)
+
+    user_content = (
+        f"Business process: {sanitize_for_prompt(business_process)}\n\n"
+        f"Database schema:\n{context}"
+    )
+    if instructions:
+        user_content += f"\n\nAdditional instructions: {sanitize_for_prompt(instructions)}"
 
     messages = [
         {
@@ -135,13 +147,7 @@ async def suggest_grain(
                 '"recommended": bool, "reasoning": str}]}'
             ),
         },
-        {
-            "role": "user",
-            "content": (
-                f"Business process: {sanitize_for_prompt(business_process)}\n\n"
-                f"Database schema:\n{context}"
-            ),
-        },
+        {"role": "user", "content": user_content},
     ]
 
     result = await chat_completion(messages)
@@ -153,9 +159,19 @@ async def suggest_dimensions(
     grain_description: str,
     snapshot: MetadataSnapshot,
     selected_tables: list[str] | None = None,
+    *,
+    instructions: str | None = None,
 ) -> dict[str, Any]:
     """Step 5: Suggest dimensions for the fact table."""
     context = _build_metadata_context(snapshot, selected_tables)
+
+    user_content = (
+        f"Business process: {sanitize_for_prompt(business_process)}\n"
+        f"Grain: {sanitize_for_prompt(grain_description)}\n\n"
+        f"Database schema:\n{context}"
+    )
+    if instructions:
+        user_content += f"\n\nAdditional instructions: {sanitize_for_prompt(instructions)}"
 
     messages = [
         {
@@ -170,14 +186,7 @@ async def suggest_dimensions(
                 '"description": str, "confidence": float}]}'
             ),
         },
-        {
-            "role": "user",
-            "content": (
-                f"Business process: {sanitize_for_prompt(business_process)}\n"
-                f"Grain: {sanitize_for_prompt(grain_description)}\n\n"
-                f"Database schema:\n{context}"
-            ),
-        },
+        {"role": "user", "content": user_content},
     ]
 
     result = await chat_completion(messages)
@@ -190,9 +199,20 @@ async def suggest_measures(
     selected_dimensions: list[str | dict[str, Any]],
     snapshot: MetadataSnapshot,
     selected_tables: list[str] | None = None,
+    *,
+    instructions: str | None = None,
 ) -> dict[str, Any]:
     """Step 6: Suggest measures for the fact table."""
     context = _build_metadata_context(snapshot, selected_tables)
+
+    user_content = (
+        f"Business process: {sanitize_for_prompt(business_process)}\n"
+        f"Grain: {sanitize_for_prompt(grain_description)}\n"
+        f"Dimensions: {json.dumps(selected_dimensions)}\n\n"
+        f"Database schema:\n{context}"
+    )
+    if instructions:
+        user_content += f"\n\nAdditional instructions: {sanitize_for_prompt(instructions)}"
 
     messages = [
         {
@@ -207,15 +227,7 @@ async def suggest_measures(
                 '"data_type": str, "description": str, "confidence": float}]}'
             ),
         },
-        {
-            "role": "user",
-            "content": (
-                f"Business process: {sanitize_for_prompt(business_process)}\n"
-                f"Grain: {sanitize_for_prompt(grain_description)}\n"
-                f"Dimensions: {json.dumps(selected_dimensions)}\n\n"
-                f"Database schema:\n{context}"
-            ),
-        },
+        {"role": "user", "content": user_content},
     ]
 
     result = await chat_completion(messages)

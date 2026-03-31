@@ -44,7 +44,7 @@ interface BriefState {
   createSection: (briefId: string, data: Partial<BriefSection> & { section_type: string }) => Promise<BriefSection>;
   updateSection: (briefId: string, sectionId: string, data: Partial<BriefSection>) => Promise<void>;
   deleteSection: (briefId: string, sectionId: string) => Promise<void>;
-  regenerateSection: (briefId: string, sectionId: string) => Promise<void>;
+  regenerateSection: (briefId: string, sectionId: string, instructions?: string) => Promise<void>;
 
   // Cascade drafting
   draftSections: (briefId: string, callbacks?: DraftCallbacks) => Promise<void>;
@@ -199,12 +199,15 @@ export const useBriefStore = create<BriefState>((set, get) => ({
     }
   },
 
-  regenerateSection: async (briefId, sectionId) => {
+  regenerateSection: async (briefId, sectionId, instructions) => {
     set({ loading: true });
     try {
+      const body = instructions ? JSON.stringify({ instructions }) : undefined;
+      const headers: Record<string, string> = {};
+      if (body) headers['Content-Type'] = 'application/json';
       const resp = await fetch(
         `${API_BASE}/briefs/${briefId}/sections/${sectionId}/regenerate`,
-        { method: 'POST' }
+        { method: 'POST', headers, body }
       );
       if (!resp.ok) throw new Error(await parseApiError(resp));
       const updated: BriefSection = await resp.json();

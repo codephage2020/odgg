@@ -153,3 +153,70 @@
   background: var(--bg-hover, #f0f0f0);
   color: #e55;
 }
+
+/* Status colors on cards */
+.brief-card-status.status-draft {
+  background: var(--bg-subtle, #f0f0f0);
+  color: var(--text-secondary, #6b6b6b);
+}
+.brief-card-status.status-review {
+  background: rgba(234, 179, 8, 0.12);
+  color: #a16207;
+}
+.brief-card-status.status-approved {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+.brief-card-status.status-exported {
+  background: rgba(74, 144, 217, 0.12);
+  color: #4a90d9;
+}
+
+/* Delete confirmation dialog */
+.brief-delete-dialog {
+  background: var(--bg-surface, #fff);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  padding: 24px;
+  width: 340px;
+  max-width: 90vw;
+  text-align: center;
+}
+.brief-delete-dialog p {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.brief-delete-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.brief-delete-confirm {
+  padding: 8px 20px;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.brief-delete-confirm:hover {
+  background: #b91c1c;
+}
+
+.brief-delete-cancel {
+  padding: 8px 20px;
+  background: none;
+  border: 1px solid var(--border-subtle, #ddd);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-secondary, #6b6b6b);
+}
+.brief-delete-cancel:hover {
+  background: var(--bg-hover, #f0f0f0);
+}
