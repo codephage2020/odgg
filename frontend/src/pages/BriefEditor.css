@@ -1079,12 +1079,16 @@
   background: var(--bg-inset);
 }
 
+.brief-code-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  margin-left: 8px;
+}
 .brief-code-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  text-transform: uppercase;
   color: var(--text-secondary);
-  letter-spacing: 0.05em;
 }
 
 .brief-code-pre {
