@@ -229,6 +229,7 @@ export const useBriefStore = create<BriefState>((set, get) => ({
   // --- Cascade Drafting ---
 
   draftSections: async (briefId, callbacks) => {
+    if (get().drafting) return; // Prevent concurrent drafting
     set({ drafting: true, draftingSection: null, error: null });
     try {
       const eventSource = new EventSource(`${API_BASE}/briefs/${briefId}/draft?stream=true`);

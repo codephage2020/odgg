@@ -51,6 +51,42 @@
   margin: 0;
 }
 
+/* Search and filter bar */
+.brief-list-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.brief-search-input {
+  flex: 1;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+.brief-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.brief-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+.brief-filter-select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.brief-filter-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .brief-create-btn {
   padding: 8px 16px;
   background: var(--accent);
