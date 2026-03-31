@@ -55,6 +55,12 @@ export function BriefConnectDialog({ briefId, onConnected, onClose }: BriefConne
         </div>
 
         <div className="brief-connect-form">
+          <div className="brief-connect-db-type">
+            <span className="brief-connect-db-icon">🐘</span>
+            <span>PostgreSQL</span>
+            <span className="brief-connect-db-hint">当前仅支持 PostgreSQL，更多数据库即将支持</span>
+          </div>
+
           <div className="brief-form-grid">
             <div className="brief-form-group">
               <label>主机</label>
@@ -89,6 +95,21 @@ export function BriefConnectDialog({ briefId, onConnected, onClose }: BriefConne
               <input value={schema} onChange={(e) => setSchema(e.target.value)} />
             </div>
           </div>
+
+          <button
+            className="brief-connect-quickfill"
+            type="button"
+            onClick={() => {
+              setHost('localhost');
+              setPort('5435');
+              setDatabase('tpch');
+              setUsername('odgg');
+              setPassword('odgg_dev');
+              setSchema('public');
+            }}
+          >
+            ⚡ 填入 TPC-H 示例库
+          </button>
 
           {error && <div className="brief-connect-error">{error}</div>}
 
