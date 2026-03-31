@@ -664,6 +664,19 @@
   cursor: not-allowed;
 }
 
+.brief-header-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--text-secondary, #6b6b6b);
+}
+.brief-header-icon-btn:hover {
+  background: var(--bg-hover, #f0f0f0);
+}
+
 .brief-db-badge {
   font-size: 12px;
   padding: 2px 10px;

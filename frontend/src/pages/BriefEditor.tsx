@@ -50,6 +50,7 @@ export function BriefEditor() {
   const [generatedCode, setGeneratedCode] = useState<Record<string, string> | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [confirmRedraftAll, setConfirmRedraftAll] = useState(false);
   const statusRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -254,17 +255,28 @@ export function BriefEditor() {
             ✦ AI 起草
           </button>
         )}
-        {hasSections && (
+        {hasSections && !drafting && (
           <>
-            <button className="brief-header-btn" onClick={handleExport} disabled={loading}>
+            <button
+              className="brief-header-btn"
+              onClick={() => setConfirmRedraftAll(true)}
+              disabled={loading}
+              aria-label="重新起草所有章节"
+            >
+              ✦ 重新起草
+            </button>
+            <button className="brief-header-btn" onClick={handleExport} disabled={loading} aria-label="导出 Markdown">
               📄 导出
             </button>
-            <button className="brief-header-btn" onClick={handleGenerate} disabled={loading}>
+            <button className="brief-header-btn" onClick={handleGenerate} disabled={loading} aria-label="生成代码">
               {loading ? '生成中...' : '⚡ 生成代码'}
             </button>
           </>
         )}
 
+        <button className="brief-header-icon-btn" onClick={() => navigate('/settings')} aria-label="AI 设置" title="AI 设置">
+          ⚙
+        </button>
         <ThemeToggle />
         {error && (
           <div className="wb-error">
@@ -405,6 +417,29 @@ export function BriefEditor() {
           )}
         </main>
       </div>
+
+      {/* Re-draft all confirmation */}
+      {confirmRedraftAll && (
+        <div className="brief-dialog-overlay" onClick={() => setConfirmRedraftAll(false)}>
+          <div className="brief-delete-dialog" onClick={(e) => e.stopPropagation()}>
+            <p>重新起草将覆盖所有现有章节内容，此操作不可撤销。确定继续？</p>
+            <div className="brief-delete-actions">
+              <button
+                className="brief-delete-confirm"
+                onClick={() => {
+                  setConfirmRedraftAll(false);
+                  handleDraft();
+                }}
+              >
+                确定重新起草
+              </button>
+              <button className="brief-delete-cancel" onClick={() => setConfirmRedraftAll(false)}>
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Connect dialog */}
       {showConnect && (

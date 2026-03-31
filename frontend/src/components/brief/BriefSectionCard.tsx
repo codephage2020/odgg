@@ -102,6 +102,7 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
               className="brief-action-btn"
               onClick={() => setShowDrafts(!showDrafts)}
               title="查看草稿历史"
+              aria-label={`查看草稿历史 (${section.ai_drafts.length})`}
             >
               📋 {section.ai_drafts.length}
             </button>
@@ -111,6 +112,7 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
             onClick={() => setShowRedraftInput(!showRedraftInput)}
             disabled={regenerating}
             title="重新生成（可附加指令）"
+            aria-label="重新生成"
           >
             {regenerating ? '⏳' : '🔄'}
           </button>
@@ -118,6 +120,7 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
             className="brief-action-btn brief-action-danger"
             onClick={() => setConfirmDelete(true)}
             title="删除章节"
+            aria-label="删除章节"
           >
             🗑
           </button>

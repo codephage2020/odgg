@@ -102,7 +102,7 @@ export function BriefList() {
                 </span>
               </div>
               <div className="brief-card-date">
-                {new Date(brief.created_at).toLocaleDateString('zh-CN')}
+                更新于 {new Date(brief.updated_at).toLocaleDateString('zh-CN')}
               </div>
               <button
                 className="brief-card-delete"
