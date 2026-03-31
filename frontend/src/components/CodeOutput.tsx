@@ -1,5 +1,5 @@
 // Step 8: Code output display with tabs for DDL/ETL/dbt/Dictionary
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CodeBlock } from './CodeBlock';
 
 interface Props {
@@ -17,6 +17,15 @@ export function CodeOutput({ ddl, etl, dbt, dataDictionary, loading }: Props) {
   const [selectedDbtFile, setSelectedDbtFile] = useState<string>(
     Object.keys(dbt)[0] || ''
   );
+
+  // Sync selected dbt file when dbt prop changes
+  useEffect(() => {
+    const files = Object.keys(dbt);
+    if (files.length > 0 && !files.includes(selectedDbtFile)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync derived state from prop change
+      setSelectedDbtFile(files[0]);
+    }
+  }, [dbt, selectedDbtFile]);
   const [copied, setCopied] = useState(false);
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
@@ -30,7 +39,7 @@ export function CodeOutput({ ddl, etl, dbt, dataDictionary, loading }: Props) {
     switch (activeTab) {
       case 'ddl': return ddl;
       case 'etl': return etl;
-      case 'dbt': return dbt[selectedDbtFile] || '选择一个 dbt 文件';
+      case 'dbt': return Object.keys(dbt).length === 0 ? '' : (dbt[selectedDbtFile] || '');
       case 'dictionary': return dataDictionary;
     }
   };
@@ -102,13 +111,18 @@ export function CodeOutput({ ddl, etl, dbt, dataDictionary, loading }: Props) {
             </button>
           </div>
         </div>
-        {content ? (
+        {loading ? (
+          <div className="code-block-loading">
+            <div className="spinner-sm" />
+            <span>代码生成中...</span>
+          </div>
+        ) : content ? (
           <CodeBlock
             code={content}
             language={activeTab === 'dictionary' ? 'yaml' : 'sql'}
           />
         ) : (
-          <pre className="code-block"><code>(空)</code></pre>
+          <pre className="code-block"><code>{activeTab === 'dbt' && Object.keys(dbt).length === 0 ? '未生成 dbt 模型' : '(空)'}</code></pre>
         )}
       </div>
 

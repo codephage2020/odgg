@@ -16,7 +16,7 @@ export function StepProgress({ steps }: Props) {
         <span className="sp-title">建模进度</span>
         <span className="sp-pct">{progress}%</span>
       </div>
-      <div className="sp-bar">
+      <div className="sp-bar" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label={`建模进度 ${progress}%`}>
         <div className="sp-fill" style={{ width: `${progress}%` }} />
       </div>
       <div className="sp-steps">
@@ -24,12 +24,12 @@ export function StepProgress({ steps }: Props) {
           const state = steps.find((s) => s.step_number === def.number);
           const status = state?.status || 'locked';
           return (
-            <div key={def.number} className={`sp-step sp-${status}`}>
-              <span className="sp-dot">
+            <div key={def.number} className={`sp-step sp-${status}`} aria-current={status === 'active' ? 'step' : undefined}>
+              <span className="sp-dot" aria-label={`步骤 ${def.number}: ${def.name}, ${status === 'completed' ? '已完成' : status === 'active' ? '进行中' : status === 'ai_thinking' ? 'AI 分析中' : '未开始'}`}>
                 {status === 'completed' ? '✓' : def.number}
               </span>
               <span className="sp-name">{def.name}</span>
-              {status === 'ai_thinking' && <span className="sp-thinking" />}
+              {status === 'ai_thinking' && <span className="sp-thinking" aria-label="AI 分析中" />}
             </div>
           );
         })}

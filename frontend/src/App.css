@@ -804,6 +804,15 @@
   overflow-y: auto;
   margin: 0;
 }
+.code-block-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 14px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  background: var(--code-bg);
+}
 .code-stats {
   display: flex;
   gap: 16px;
