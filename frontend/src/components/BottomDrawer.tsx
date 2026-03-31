@@ -56,12 +56,17 @@ export function BottomDrawer() {
 
   return (
     <div className={`bottom-drawer ${collapsed ? 'drawer-collapsed' : ''}`}>
-      <div className="drawer-handle" onClick={() => setCollapsed(!collapsed)}>
+      <button
+        className="drawer-handle"
+        onClick={() => setCollapsed(!collapsed)}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? '展开代码输出' : '收起代码输出'}
+      >
         <span className="drawer-title">
           代码输出
           {codeOutput && <span className="drawer-ready">已生成</span>}
         </span>
-        <div className="drawer-actions">
+        <span className="drawer-actions">
           {hasModel && !codeOutput && (
             <button
               className="btn btn-sm btn-primary"
@@ -71,9 +76,9 @@ export function BottomDrawer() {
               {generating ? '生成中...' : '生成代码'}
             </button>
           )}
-          <button className="drawer-toggle">{collapsed ? '▲' : '▼'}</button>
-        </div>
-      </div>
+          <span className="drawer-toggle" aria-hidden="true">{collapsed ? '▲' : '▼'}</span>
+        </span>
+      </button>
       {!collapsed && (
         <div className="drawer-content">
           {codeOutput ? (

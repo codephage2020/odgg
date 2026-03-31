@@ -111,15 +111,15 @@ function MessageBubble({
             {renderSuggestionContent(msg)}
             {msg.status === 'complete' && onAccept && (
               <div className="chat-actions">
-                <button className="btn btn-sm btn-accept" onClick={onAccept}>接受</button>
-                <button className="btn btn-sm btn-reject" onClick={onReject}>拒绝</button>
+                <button className="btn btn-sm btn-accept" onClick={onAccept} aria-label="接受 AI 建议">接受</button>
+                <button className="btn btn-sm btn-reject" onClick={onReject} aria-label="拒绝 AI 建议">拒绝</button>
               </div>
             )}
           </>
         ) : (
           <p>{msg.content}</p>
         )}
-        {msg.status === 'streaming' && <span className="chat-typing" />}
+        {msg.status === 'streaming' && <span className="chat-typing" aria-label="AI 正在思考" />}
       </div>
     </div>
   );
