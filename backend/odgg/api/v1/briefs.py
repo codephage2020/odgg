@@ -20,6 +20,7 @@ from odgg.models.brief import (
     BriefResponse,
     BriefRow,
     BriefUpdate,
+    RegenerateRequest,
     SectionCreate,
     SectionResponse,
     SectionRow,
@@ -320,12 +321,13 @@ async def delete_section(
 async def regenerate_section(
     brief_id: str,
     section_id: str,
+    body: RegenerateRequest | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> SectionResponse:
     """Regenerate AI draft for a section.
 
+    Optionally accepts user instructions to guide the re-draft.
     Appends the new draft to ai_drafts history and replaces content.
-    Actual LLM call will be wired in the next implementation step.
     """
     stmt = select(SectionRow).where(
         SectionRow.id == section_id,
@@ -343,7 +345,10 @@ async def regenerate_section(
     brief = await _get_brief_or_404(brief_id, db)
     snapshot = MetadataSnapshot(**(brief.metadata_snapshot or {}))
 
-    new_draft = await _draft_section_content(section.section_type, brief, snapshot)
+    instructions = body.instructions if body else None
+    new_draft = await _draft_section_content(
+        section.section_type, brief, snapshot, instructions=instructions,
+    )
     drafts = list(section.ai_drafts or [])
     drafts.append(new_draft)
     section.ai_drafts = drafts
@@ -422,11 +427,13 @@ async def _draft_section_content(
     grain_description: str = "",
     dimensions: list | None = None,
     selected_tables: list[str] | None = None,
+    instructions: str | None = None,
 ) -> str:
     """Generate AI draft content for a section type.
 
     Uses the modeling engine's decoupled functions.
     Falls back to placeholder if no metadata available.
+    When instructions are provided, they're appended to the LLM prompt.
     """
     dimensions = dimensions or []
 
@@ -435,7 +442,9 @@ async def _draft_section_content(
 
     try:
         if section_type == SectionType.BUSINESS_PROCESS:
-            result = await suggest_business_process(snapshot, selected_tables)
+            result = await suggest_business_process(
+                snapshot, selected_tables, instructions=instructions,
+            )
             processes = result.get("processes", [])
             if processes:
                 bp = processes[0]
@@ -447,7 +456,9 @@ async def _draft_section_content(
             return "[AI could not identify a business process]"
 
         elif section_type == SectionType.GRAIN:
-            result = await suggest_grain(business_process, snapshot, selected_tables)
+            result = await suggest_grain(
+                business_process, snapshot, selected_tables, instructions=instructions,
+            )
             options = result.get("options", [])
             recommended = next((o for o in options if o.get("recommended")), None)
             opt = recommended or (options[0] if options else None)
@@ -461,7 +472,8 @@ async def _draft_section_content(
 
         elif section_type == SectionType.DIMENSION:
             result = await suggest_dimensions(
-                business_process, grain_description, snapshot, selected_tables
+                business_process, grain_description, snapshot, selected_tables,
+                instructions=instructions,
             )
             dims = result.get("dimensions", [])
             if dims:
@@ -477,7 +489,8 @@ async def _draft_section_content(
 
         elif section_type == SectionType.MEASURE:
             result = await suggest_measures(
-                business_process, grain_description, dimensions, snapshot, selected_tables
+                business_process, grain_description, dimensions, snapshot, selected_tables,
+                instructions=instructions,
             )
             measures = result.get("measures", [])
             if measures:

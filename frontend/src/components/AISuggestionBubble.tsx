@@ -15,8 +15,9 @@ interface Props {
 
 function ElapsedTimer() {
   const [elapsed, setElapsed] = useState(0);
-  const start = useRef(Date.now());
+  const start = useRef(0);
   useEffect(() => {
+    start.current = Date.now();
     const id = setInterval(() => setElapsed(Math.floor((Date.now() - start.current) / 1000)), 1000);
     return () => clearInterval(id);
   }, []);

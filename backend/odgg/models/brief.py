@@ -209,6 +209,12 @@ class SectionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class RegenerateRequest(BaseModel):
+    """Optional instructions for section regeneration."""
+
+    instructions: str | None = None
+
+
 MAX_SELECTED_TABLES = 500
 
 

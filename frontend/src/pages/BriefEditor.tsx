@@ -1,5 +1,5 @@
 // ODGG — Modeling Brief Editor (document-centric mode)
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBriefStore } from '../store/briefStore';
 import { BriefSidebar } from '../components/brief/BriefSidebar';
@@ -8,9 +8,23 @@ import { BriefShimmer } from '../components/brief/BriefShimmer';
 import { BriefConnectDialog } from '../components/brief/BriefConnectDialog';
 import TableSelector from '../components/brief/TableSelector';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { CodeBlock } from '../components/CodeBlock';
 import { SECTION_LABELS, SECTION_ICONS } from '../types/brief';
 import type { SectionType } from '../types/brief';
 import './BriefEditor.css';
+
+/** Trigger a file download in the browser. */
+function downloadFile(content: string, filename: string, mime = 'text/plain') {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 export function BriefEditor() {
   const { briefId } = useParams<{ briefId: string }>();
@@ -26,6 +40,7 @@ export function BriefEditor() {
     updateBrief,
     draftSections,
     generateCode,
+    exportBrief,
     clearError,
   } = useBriefStore();
 
@@ -33,12 +48,28 @@ export function BriefEditor() {
   const [titleDraft, setTitleDraft] = useState('');
   const [showConnect, setShowConnect] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<Record<string, string> | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [confirmRedraftAll, setConfirmRedraftAll] = useState(false);
+  const statusRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (briefId) {
       fetchBrief(briefId);
     }
   }, [briefId, fetchBrief]);
+
+  // Close status menu on click outside
+  useEffect(() => {
+    if (!showStatusMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
+        setShowStatusMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showStatusMenu]);
 
   const handleTitleSave = useCallback(async () => {
     if (currentBrief && titleDraft.trim() && titleDraft !== currentBrief.title) {
@@ -69,6 +100,47 @@ export function BriefEditor() {
       // Error handled in store
     }
   }, [currentBrief, generateCode]);
+
+  const handleStatusChange = useCallback(async (status: string) => {
+    if (currentBrief) {
+      await updateBrief(currentBrief.id, { status });
+    }
+    setShowStatusMenu(false);
+  }, [currentBrief, updateBrief]);
+
+  const handleExport = useCallback(async () => {
+    if (!currentBrief) return;
+    try {
+      const md = await exportBrief(currentBrief.id);
+      const filename = `${currentBrief.title.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g, '_')}.md`;
+      downloadFile(md, filename, 'text/markdown');
+    } catch {
+      // Error handled in store
+    }
+  }, [currentBrief, exportBrief]);
+
+  const handleCopyCode = useCallback(async (key: string, code: string) => {
+    await navigator.clipboard.writeText(code);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  }, []);
+
+  const handleDownloadCode = useCallback((key: string, code: string) => {
+    const ext = key === 'dbt_model' ? '.sql' : key === 'dbt_schema' ? '.yml' : '.sql';
+    downloadFile(code, `${key}${ext}`);
+  }, []);
+
+  // Global keyboard shortcuts: Cmd+E to export
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+        e.preventDefault();
+        handleExport();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [handleExport]);
 
   if (loading && !currentBrief) {
     return (
@@ -137,7 +209,33 @@ export function BriefEditor() {
               {currentBrief.title}
             </h1>
           )}
-          <span className="brief-status-badge">{currentBrief.status}</span>
+          <div className="brief-status-wrapper" ref={statusRef}>
+            <button
+              className={`brief-status-badge clickable status-${currentBrief.status}`}
+              onClick={() => setShowStatusMenu(!showStatusMenu)}
+            >
+              {currentBrief.status === 'draft' && '📝 草稿'}
+              {currentBrief.status === 'review' && '👀 评审中'}
+              {currentBrief.status === 'approved' && '✅ 已批准'}
+              {currentBrief.status === 'exported' && '📤 已导出'}
+            </button>
+            {showStatusMenu && (
+              <div className="brief-status-menu">
+                {(['draft', 'review', 'approved', 'exported'] as const).map((s) => (
+                  <button
+                    key={s}
+                    className={`brief-status-option ${s === currentBrief.status ? 'active' : ''}`}
+                    onClick={() => handleStatusChange(s)}
+                  >
+                    {s === 'draft' && '📝 草稿'}
+                    {s === 'review' && '👀 评审中'}
+                    {s === 'approved' && '✅ 已批准'}
+                    {s === 'exported' && '📤 已导出'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {hasMetadata && (
             <span className="brief-db-badge">
               🗄 {currentBrief.database_name || 'Connected'}
@@ -157,12 +255,28 @@ export function BriefEditor() {
             ✦ AI 起草
           </button>
         )}
-        {hasSections && (
-          <button className="brief-header-btn" onClick={handleGenerate} disabled={loading}>
-            {loading ? '生成中...' : '⚡ 生成代码'}
-          </button>
+        {hasSections && !drafting && (
+          <>
+            <button
+              className="brief-header-btn"
+              onClick={() => setConfirmRedraftAll(true)}
+              disabled={loading}
+              aria-label="重新起草所有章节"
+            >
+              ✦ 重新起草
+            </button>
+            <button className="brief-header-btn" onClick={handleExport} disabled={loading} aria-label="导出 Markdown">
+              📄 导出
+            </button>
+            <button className="brief-header-btn" onClick={handleGenerate} disabled={loading} aria-label="生成代码">
+              {loading ? '生成中...' : '⚡ 生成代码'}
+            </button>
+          </>
         )}
 
+        <button className="brief-header-icon-btn" onClick={() => navigate('/settings')} aria-label="AI 设置" title="AI 设置">
+          ⚙
+        </button>
         <ThemeToggle />
         {error && (
           <div className="wb-error">
@@ -251,25 +365,81 @@ export function BriefEditor() {
               <div className="brief-section-header">
                 <span className="brief-section-icon">⚡</span>
                 <h3 className="brief-section-title">生成的代码</h3>
-                <button
-                  className="brief-action-btn"
-                  onClick={() => setGeneratedCode(null)}
-                >
-                  关闭
-                </button>
-              </div>
-              {Object.entries(generatedCode).map(([key, value]) => (
-                <div key={key} className="brief-code-block">
-                  <div className="brief-code-label">{key.toUpperCase()}</div>
-                  <pre className="brief-code-pre">
-                    {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
-                  </pre>
+                <div className="brief-code-global-actions">
+                  <button
+                    className="brief-action-btn"
+                    onClick={() => {
+                      const allCode = Object.entries(generatedCode)
+                        .map(([k, v]) => `-- ${k.toUpperCase()}\n${typeof v === 'string' ? v : JSON.stringify(v, null, 2)}`)
+                        .join('\n\n');
+                      downloadFile(allCode, 'generated_code.sql');
+                    }}
+                    title="下载全部"
+                  >
+                    ⬇ 下载全部
+                  </button>
+                  <button
+                    className="brief-action-btn"
+                    onClick={() => setGeneratedCode(null)}
+                  >
+                    ✕ 关闭
+                  </button>
                 </div>
-              ))}
+              </div>
+              {Object.entries(generatedCode).map(([key, value]) => {
+                const code = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+                return (
+                  <div key={key} className="brief-code-block">
+                    <div className="brief-code-block-header">
+                      <div className="brief-code-label">{key.toUpperCase()}</div>
+                      <div className="brief-code-block-actions">
+                        <button
+                          className="brief-code-btn"
+                          onClick={() => handleCopyCode(key, code)}
+                          title="复制"
+                        >
+                          {copiedKey === key ? '✓ 已复制' : '📋 复制'}
+                        </button>
+                        <button
+                          className="brief-code-btn"
+                          onClick={() => handleDownloadCode(key, code)}
+                          title="下载"
+                        >
+                          ⬇ 下载
+                        </button>
+                      </div>
+                    </div>
+                    <CodeBlock code={code} language={key.includes('schema') ? 'yaml' : 'sql'} />
+                  </div>
+                );
+              })}
             </div>
           )}
         </main>
       </div>
+
+      {/* Re-draft all confirmation */}
+      {confirmRedraftAll && (
+        <div className="brief-dialog-overlay" onClick={() => setConfirmRedraftAll(false)}>
+          <div className="brief-delete-dialog" onClick={(e) => e.stopPropagation()}>
+            <p>重新起草将覆盖所有现有章节内容，此操作不可撤销。确定继续？</p>
+            <div className="brief-delete-actions">
+              <button
+                className="brief-delete-confirm"
+                onClick={() => {
+                  setConfirmRedraftAll(false);
+                  handleDraft();
+                }}
+              >
+                确定重新起草
+              </button>
+              <button className="brief-delete-cancel" onClick={() => setConfirmRedraftAll(false)}>
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Connect dialog */}
       {showConnect && (

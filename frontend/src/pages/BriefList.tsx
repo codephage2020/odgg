@@ -5,11 +5,19 @@ import { useBriefStore } from '../store/briefStore';
 import { ThemeToggle } from '../components/ThemeToggle';
 import './BriefList.css';
 
+const STATUS_LABELS: Record<string, string> = {
+  draft: '📝 草稿',
+  review: '👀 评审中',
+  approved: '✅ 已批准',
+  exported: '📤 已导出',
+};
+
 export function BriefList() {
   const navigate = useNavigate();
   const { briefs, loading, error, listBriefs, createBrief, deleteBrief, clearError } =
     useBriefStore();
   const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     listBriefs();
@@ -83,7 +91,9 @@ export function BriefList() {
             >
               <h3>{brief.title}</h3>
               <div className="brief-card-meta">
-                <span className="brief-card-status">{brief.status}</span>
+                <span className={`brief-card-status status-${brief.status}`}>
+                  {STATUS_LABELS[brief.status] || brief.status}
+                </span>
                 {brief.database_name && (
                   <span className="brief-card-db">{brief.database_name}</span>
                 )}
@@ -92,15 +102,13 @@ export function BriefList() {
                 </span>
               </div>
               <div className="brief-card-date">
-                {new Date(brief.created_at).toLocaleDateString('zh-CN')}
+                更新于 {new Date(brief.updated_at).toLocaleDateString('zh-CN')}
               </div>
               <button
                 className="brief-card-delete"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm('确定删除这个 Brief？')) {
-                    deleteBrief(brief.id);
-                  }
+                  setDeleteTarget(brief.id);
                 }}
               >
                 ×
@@ -108,6 +116,32 @@ export function BriefList() {
             </div>
           ))}
         </div>
+
+        {/* Delete confirmation dialog */}
+        {deleteTarget && (
+          <div className="brief-dialog-overlay" onClick={() => setDeleteTarget(null)}>
+            <div className="brief-delete-dialog" onClick={(e) => e.stopPropagation()}>
+              <p>确定删除这个 Brief？此操作不可撤销。</p>
+              <div className="brief-delete-actions">
+                <button
+                  className="brief-delete-confirm"
+                  onClick={() => {
+                    deleteBrief(deleteTarget);
+                    setDeleteTarget(null);
+                  }}
+                >
+                  删除
+                </button>
+                <button
+                  className="brief-delete-cancel"
+                  onClick={() => setDeleteTarget(null)}
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

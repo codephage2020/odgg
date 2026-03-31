@@ -1,4 +1,4 @@
-// Single section card — edit content, regenerate, view draft history
+// Single section card — edit content, regenerate with instructions, view draft history
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useBriefStore } from '../../store/briefStore';
 import { SECTION_LABELS, SECTION_ICONS } from '../../types/brief';
@@ -10,12 +10,16 @@ interface BriefSectionCardProps {
 }
 
 export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
-  const { updateSection, regenerateSection } = useBriefStore();
+  const { updateSection, regenerateSection, deleteSection } = useBriefStore();
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState(section.content);
   const [showDrafts, setShowDrafts] = useState(false);
+  const [showRedraftInput, setShowRedraftInput] = useState(false);
+  const [redraftInstructions, setRedraftInstructions] = useState('');
   const [regenerating, setRegenerating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const redraftRef = useRef<HTMLInputElement>(null);
 
   // Sync content when section updates from SSE
   useEffect(() => {
@@ -39,14 +43,24 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
     setEditing(false);
   }, [content, section.content, section.id, briefId, updateSection]);
 
+  // Focus the redraft input when it appears
+  useEffect(() => {
+    if (showRedraftInput && redraftRef.current) {
+      redraftRef.current.focus();
+    }
+  }, [showRedraftInput]);
+
   const handleRegenerate = useCallback(async () => {
+    const instructions = redraftInstructions.trim() || undefined;
     setRegenerating(true);
+    setShowRedraftInput(false);
+    setRedraftInstructions('');
     try {
-      await regenerateSection(briefId, section.id);
+      await regenerateSection(briefId, section.id, instructions);
     } finally {
       setRegenerating(false);
     }
-  }, [briefId, section.id, regenerateSection]);
+  }, [briefId, section.id, redraftInstructions, regenerateSection]);
 
   const handleRestoreDraft = useCallback(
     async (draft: string) => {
@@ -55,6 +69,11 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
     },
     [briefId, section.id, updateSection]
   );
+
+  const handleDelete = useCallback(async () => {
+    await deleteSection(briefId, section.id);
+    setConfirmDelete(false);
+  }, [briefId, section.id, deleteSection]);
 
   const label =
     section.name || SECTION_LABELS[section.section_type as SectionType] || section.section_type;
@@ -83,20 +102,39 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
               className="brief-action-btn"
               onClick={() => setShowDrafts(!showDrafts)}
               title="查看草稿历史"
+              aria-label={`查看草稿历史 (${section.ai_drafts.length})`}
             >
               📋 {section.ai_drafts.length}
             </button>
           )}
           <button
             className="brief-action-btn"
-            onClick={handleRegenerate}
+            onClick={() => setShowRedraftInput(!showRedraftInput)}
             disabled={regenerating}
-            title="重新生成"
+            title="重新生成（可附加指令）"
+            aria-label="重新生成"
           >
             {regenerating ? '⏳' : '🔄'}
           </button>
+          <button
+            className="brief-action-btn brief-action-danger"
+            onClick={() => setConfirmDelete(true)}
+            title="删除章节"
+            aria-label="删除章节"
+          >
+            🗑
+          </button>
         </div>
       </div>
+
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <div className="brief-confirm-bar">
+          <span>确定删除「{label}」？此操作不可撤销。</span>
+          <button className="brief-confirm-yes" onClick={handleDelete}>删除</button>
+          <button className="brief-confirm-no" onClick={() => setConfirmDelete(false)}>取消</button>
+        </div>
+      )}
 
       {/* Draft history popover */}
       {showDrafts && (
@@ -119,6 +157,35 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
         </div>
       )}
 
+      {/* Redraft input */}
+      {showRedraftInput && !regenerating && (
+        <div className="brief-redraft-bar">
+          <input
+            ref={redraftRef}
+            className="brief-redraft-input"
+            placeholder="输入修改指令（可选），例如：更详细地描述维度属性..."
+            value={redraftInstructions}
+            onChange={(e) => setRedraftInstructions(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRegenerate();
+              if (e.key === 'Escape') {
+                setShowRedraftInput(false);
+                setRedraftInstructions('');
+              }
+            }}
+          />
+          <button className="brief-redraft-go" onClick={handleRegenerate}>
+            重新生成
+          </button>
+          <button
+            className="brief-redraft-cancel"
+            onClick={() => { setShowRedraftInput(false); setRedraftInstructions(''); }}
+          >
+            取消
+          </button>
+        </div>
+      )}
+
       {/* Content area */}
       {editing ? (
         <div className="brief-section-editing">
@@ -133,10 +200,14 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
                 setContent(section.content);
                 setEditing(false);
               }
+              if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                handleSave();
+              }
             }}
           />
           <div className="brief-section-edit-hint">
-            按 Escape 取消 · 点击外部保存
+            按 Escape 取消 · Cmd+S 保存 · 点击外部保存
           </div>
         </div>
       ) : (

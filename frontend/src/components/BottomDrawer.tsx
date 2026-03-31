@@ -16,6 +16,7 @@ export function BottomDrawer() {
     if (!session || generating || codeOutput) return;
     const step8 = session.steps.find((s) => s.step_number === 8);
     if (step8?.status === 'active' && session.dimensional_model) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- triggers async code gen on step transition
       setGenerating(true);
       setCollapsed(false);
       generateCode('full', true)

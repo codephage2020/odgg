@@ -31,9 +31,6 @@ export function WizardPage() {
     async (url: string, schema: string) => {
       try {
         const snapshot = await discoverMetadata(url, schema);
-        if (session) {
-          session.metadata_snapshot = snapshot as unknown as Record<string, unknown>;
-        }
         await confirmStep(1, { connected: true });
         await confirmStep(2, { tables: (snapshot as MetadataSnapshot).tables.length });
         addMessage({
@@ -45,7 +42,7 @@ export function WizardPage() {
         // Error handled in store
       }
     },
-    [session, discoverMetadata, confirmStep, addMessage]
+    [discoverMetadata, confirmStep, addMessage]
   );
 
   if (!session) {
