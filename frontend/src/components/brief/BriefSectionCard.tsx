@@ -197,10 +197,14 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
                 setContent(section.content);
                 setEditing(false);
               }
+              if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                handleSave();
+              }
             }}
           />
           <div className="brief-section-edit-hint">
-            按 Escape 取消 · 点击外部保存
+            按 Escape 取消 · Cmd+S 保存 · 点击外部保存
           </div>
         </div>
       ) : (

@@ -129,6 +129,18 @@ export function BriefEditor() {
     downloadFile(code, `${key}${ext}`);
   }, []);
 
+  // Global keyboard shortcuts: Cmd+E to export
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+        e.preventDefault();
+        handleExport();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [handleExport]);
+
   if (loading && !currentBrief) {
     return (
       <div className="app-loading">
