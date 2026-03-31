@@ -1,5 +1,6 @@
 // Step 8: Code output display with tabs for DDL/ETL/dbt/Dictionary
 import { useState } from 'react';
+import { CodeBlock } from './CodeBlock';
 
 interface Props {
   ddl: string;
@@ -101,9 +102,14 @@ export function CodeOutput({ ddl, etl, dbt, dataDictionary, loading }: Props) {
             </button>
           </div>
         </div>
-        <pre className="code-block">
-          <code>{content || '(空)'}</code>
-        </pre>
+        {content ? (
+          <CodeBlock
+            code={content}
+            language={activeTab === 'dictionary' ? 'yaml' : 'sql'}
+          />
+        ) : (
+          <pre className="code-block"><code>(空)</code></pre>
+        )}
       </div>
 
       <div className="code-stats">

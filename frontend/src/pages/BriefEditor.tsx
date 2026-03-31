@@ -8,6 +8,7 @@ import { BriefShimmer } from '../components/brief/BriefShimmer';
 import { BriefConnectDialog } from '../components/brief/BriefConnectDialog';
 import TableSelector from '../components/brief/TableSelector';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { CodeBlock } from '../components/CodeBlock';
 import { SECTION_LABELS, SECTION_ICONS } from '../types/brief';
 import type { SectionType } from '../types/brief';
 import './BriefEditor.css';
@@ -384,7 +385,7 @@ export function BriefEditor() {
                         </button>
                       </div>
                     </div>
-                    <pre className="brief-code-pre">{code}</pre>
+                    <CodeBlock code={code} language={key.includes('schema') ? 'yaml' : 'sql'} />
                   </div>
                 );
               })}

@@ -952,7 +952,7 @@
 }
 
 .brief-code-pre {
-  background: var(--bg-code, #1e1e1e);
+  background: var(--bg-code, #0d1117);
   color: var(--text-code, #d4d4d4);
   padding: 16px;
   border-radius: 8px;
@@ -963,4 +963,12 @@
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
   max-height: 400px;
   overflow-y: auto;
+  margin: 0;
+}
+
+.brief-code-pre code {
+  font-family: inherit;
+  font-size: inherit;
+  background: transparent;
+  padding: 0;
 }
