@@ -168,33 +168,40 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
         </div>
       )}
 
-      {/* Redraft input */}
-      {showRedraftInput && !regenerating && (
-        <div className="brief-redraft-bar">
-          <input
-            ref={redraftRef}
-            className="brief-redraft-input"
-            placeholder="输入修改指令（可选），例如：更详细地描述维度属性..."
-            value={redraftInstructions}
-            onChange={(e) => setRedraftInstructions(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleRegenerate();
-              if (e.key === 'Escape') {
-                setShowRedraftInput(false);
-                setRedraftInstructions('');
-              }
-            }}
-          />
-          <button className="brief-redraft-go" onClick={handleRegenerate}>
-            重新生成
-          </button>
-          <button
-            className="brief-redraft-cancel"
-            onClick={() => { setShowRedraftInput(false); setRedraftInstructions(''); }}
-          >
-            取消
-          </button>
-        </div>
+      {/* Redraft input / loading state */}
+      {showRedraftInput && (
+        regenerating ? (
+          <div className="brief-redraft-bar brief-redraft-loading">
+            <span className="spinner-sm" />
+            <span>重新生成中{redraftInstructions ? `："${redraftInstructions}"` : '...'}</span>
+          </div>
+        ) : (
+          <div className="brief-redraft-bar">
+            <input
+              ref={redraftRef}
+              className="brief-redraft-input"
+              placeholder="输入修改指令（可选），例如：更详细地描述维度属性..."
+              value={redraftInstructions}
+              onChange={(e) => setRedraftInstructions(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRegenerate();
+                if (e.key === 'Escape') {
+                  setShowRedraftInput(false);
+                  setRedraftInstructions('');
+                }
+              }}
+            />
+            <button className="brief-redraft-go" onClick={handleRegenerate}>
+              重新生成
+            </button>
+            <button
+              className="brief-redraft-cancel"
+              onClick={() => { setShowRedraftInput(false); setRedraftInstructions(''); }}
+            >
+              取消
+            </button>
+          </div>
+        )
       )}
 
       {/* Content area */}
@@ -223,8 +230,8 @@ export function BriefSectionCard({ section, briefId }: BriefSectionCardProps) {
         </div>
       ) : (
         <div
-          className="brief-section-content"
-          onClick={() => setEditing(true)}
+          className={`brief-section-content ${regenerating ? 'brief-section-regenerating' : ''}`}
+          onClick={() => !regenerating && setEditing(true)}
         >
           {section.content ? (
             <div className="brief-section-text">{section.content}</div>

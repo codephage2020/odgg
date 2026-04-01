@@ -344,7 +344,7 @@ export function BriefEditor() {
             <div className="brief-empty-doc">
               <div className="brief-empty-icon">🗄</div>
               <h2>连接数据库开始建模</h2>
-              <p>连接你的数据库，AI 将自动分析 schema 并起草维度模型。</p>
+              <p>连接你的 PostgreSQL 数据库，AI 将自动分析表结构并生成 Kimball 维度模型（业务过程、粒度、维度、度量）。</p>
               <button
                 className="brief-draft-btn"
                 onClick={() => setShowConnect(true)}
@@ -376,7 +376,7 @@ export function BriefEditor() {
               <p>
                 发现了{' '}
                 {(currentBrief.metadata_snapshot as Record<string, unknown[]>)?.tables?.length || '?'}{' '}
-                张表。点击按钮让 AI 起草维度模型。
+                张表。AI 将依次分析业务过程 → 粒度 → 维度 → 度量，约需 1-2 分钟。
               </p>
               <button className="brief-draft-btn" onClick={handleDraft}>
                 ✦ AI 起草所有章节

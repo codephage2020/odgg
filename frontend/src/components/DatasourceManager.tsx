@@ -12,7 +12,8 @@ export function DatasourceManager({ onConnect, loading }: Props) {
   const { datasources, activeId, addDatasource, removeDatasource, setActive, buildConnectionUrl } =
     useDatasourceStore();
   const [showForm, setShowForm] = useState(false);
-  const [password, setPassword] = useState('');
+  const [formPassword, setFormPassword] = useState('');
+  const [connectPassword, setConnectPassword] = useState('');
   const [form, setForm] = useState({
     name: '',
     host: import.meta.env.VITE_DB_HOST || 'localhost',
@@ -26,18 +27,19 @@ export function DatasourceManager({ onConnect, loading }: Props) {
   const handleSaveAndConnect = () => {
     const ds = addDatasource(form);
     setActive(ds.id);
-    const url = buildConnectionUrl(ds.id, password);
+    const url = buildConnectionUrl(ds.id, formPassword);
     onConnect(url, form.schema);
     setShowForm(false);
-    setPassword('');
+    setFormPassword('');
     setForm({ ...form, name: '', database: '', username: '' });
   };
 
   const handleConnect = (ds: SavedDatasource) => {
-    if (!password) return;
+    if (!connectPassword) return;
     setActive(ds.id);
-    const url = buildConnectionUrl(ds.id, password);
+    const url = buildConnectionUrl(ds.id, connectPassword);
     onConnect(url, ds.schema);
+    setConnectPassword('');
   };
 
   return (
@@ -87,8 +89,8 @@ export function DatasourceManager({ onConnect, loading }: Props) {
           <input
             type="password"
             placeholder="密码（不保存）"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={formPassword}
+            onChange={(e) => setFormPassword(e.target.value)}
             aria-label="密码"
           />
           <input
@@ -100,7 +102,7 @@ export function DatasourceManager({ onConnect, loading }: Props) {
           <button
             className="btn btn-primary btn-sm ds-connect-btn"
             onClick={handleSaveAndConnect}
-            disabled={loading || !form.database || !form.username || !form.name}
+            disabled={loading || !form.database || !form.username || !form.name || !formPassword}
           >
             {loading ? '连接中...' : '保存并连接'}
           </button>
@@ -129,15 +131,15 @@ export function DatasourceManager({ onConnect, loading }: Props) {
                     type="password"
                     placeholder="密码"
                     className="ds-pw-input"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={connectPassword}
+                    onChange={(e) => setConnectPassword(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleConnect(ds)}
                     aria-label={`${ds.name} 密码`}
                   />
                   <button
                     className="btn btn-sm"
                     onClick={() => handleConnect(ds)}
-                    disabled={loading || !password}
+                    disabled={loading || !connectPassword}
                   >
                     连接
                   </button>
