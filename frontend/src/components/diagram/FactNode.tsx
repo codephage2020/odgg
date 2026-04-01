@@ -21,7 +21,9 @@ export function FactNode({ data }: NodeProps) {
           <div key={m} className="node-field measure">{m}</div>
         ))}
         {d.measures.length > 8 && (
-          <div className="node-field more">+{d.measures.length - 8} more</div>
+          <div className="node-field more" title={d.measures.slice(8).join('\n')}>
+            +{d.measures.length - 8} more
+          </div>
         )}
       </div>
       <Handle type="source" position={Position.Bottom} style={{ visibility: 'hidden' }} />

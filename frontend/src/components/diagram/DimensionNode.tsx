@@ -25,7 +25,9 @@ export function DimensionNode({ data }: NodeProps) {
           <div key={c} className="node-field">{c}</div>
         ))}
         {d.columns.length > 5 && (
-          <div className="node-field more">+{d.columns.length - 5} more</div>
+          <div className="node-field more" title={d.columns.slice(5).join('\n')}>
+            +{d.columns.length - 5} more
+          </div>
         )}
       </div>
       <Handle type="target" position={Position.Top} style={{ visibility: 'hidden' }} />
