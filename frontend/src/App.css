@@ -478,7 +478,7 @@
   font-family: var(--font-mono);
 }
 .node-field.measure { color: var(--fact-text); }
-.node-field.more { font-style: italic; color: var(--text-tertiary); font-family: var(--font-sans); }
+.node-field.more { font-style: italic; color: var(--text-tertiary); font-family: var(--font-sans); cursor: help; }
 
 .fact-node {
   background: var(--fact-bg);

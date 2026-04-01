@@ -119,6 +119,7 @@ export const useBriefStore = create<BriefState>((set, get) => ({
   },
 
   updateBrief: async (id: string, data) => {
+    set({ error: null });
     try {
       const resp = await fetch(`${API_BASE}/briefs/${id}`, {
         method: 'PATCH',
@@ -134,6 +135,7 @@ export const useBriefStore = create<BriefState>((set, get) => ({
   },
 
   deleteBrief: async (id: string) => {
+    set({ error: null });
     try {
       const resp = await fetch(`${API_BASE}/briefs/${id}`, { method: 'DELETE' });
       if (!resp.ok) throw new Error(await parseApiError(resp));
