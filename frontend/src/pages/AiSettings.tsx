@@ -55,7 +55,10 @@ export function AiSettings() {
     syncFormFromSettings(settings); // eslint-disable-line react-hooks/set-state-in-effect -- sync form from API response
   }, [settings, syncFormFromSettings]);
 
-  const markDirty = useCallback(() => setDirty(true), []);
+  const markDirty = useCallback(() => {
+    setDirty(true);
+    clearTestResult();
+  }, [clearTestResult]);
 
   // Warn before leaving with unsaved changes
   useEffect(() => {

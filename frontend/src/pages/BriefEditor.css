@@ -622,6 +622,15 @@
   padding: 8px 0;
   align-items: center;
 }
+.brief-redraft-loading {
+  font-size: 13px;
+  color: var(--accent);
+}
+.brief-section-regenerating {
+  opacity: 0.5;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
 
 .brief-redraft-input {
   flex: 1;
